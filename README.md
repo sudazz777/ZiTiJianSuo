@@ -55,6 +55,8 @@ bash build.sh
 
 ## 发布页面
 
+已发布：[打开字体检索下载页面](https://font-finder-release-sudazz777.meisen111.chatgpt.site)。Sites 当前使用默认私有访问设置，仅网站所有者可访问；仓库中的下载链接也可直接使用。
+
 中文发布页面位于 [docs/index.html](docs/index.html)，包含软件实际截图、功能介绍、版本说明、安装指南，以及真实的 macOS 和源码下载按钮。页面无需构建，也没有第三方前端依赖。
 
 本地预览：
