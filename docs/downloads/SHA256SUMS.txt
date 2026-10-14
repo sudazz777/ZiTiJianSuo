@@ -1,4 +1,6 @@
 7a5c25e94a379ce00c091fab90577edaf721e30dc2fa685e26e3cb7f9e623346  FontFinder-Source-v1.4.zip
 f9b10a6f0ea04aa829433db7114ee3f3a2ed10986377aa1354def354aa81028b  FontFinder-Source-v1.5.zip
+e58b2d11afb1b3e5fbb9a7dc1d4e51899a7c97bb33d4800cf4cb3034dd28496e  FontFinder-Source-v1.6.zip
 0260eab1316d1cb3f2bf110672472d9c99420ed7d6032c5be135b27b326e7867  FontFinder-macOS-Universal-v1.4.zip
 62907212e5457f8b6ab7bf28572cd98cbd1662fb2f793f3bc556877205499bca  FontFinder-macOS-Universal-v1.5.zip
+fbf6cafe4fc723eef268051b89b741e09b9fe6e0758c3d7f545ddd1cee092bb6  FontFinder-macOS-Universal-v1.6.zip
