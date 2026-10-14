@@ -24,6 +24,7 @@ import SwiftUI
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         model.reload()
+        if CommandLine.arguments.contains("--capture-netdisk") { model.showCloudLibrary = true }
         if let index = CommandLine.arguments.firstIndex(of: "--capture"), index + 1 < CommandLine.arguments.count {
             let path = CommandLine.arguments[index + 1]
             waitThenCapture(path, attempts: 40)

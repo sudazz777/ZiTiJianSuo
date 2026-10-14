@@ -4,6 +4,7 @@ import WebKit
 
 enum NetdiskSelfTest {
     @MainActor static func run() async {
+        setbuf(stdout, nil)
         var checks = 0
         func check(_ condition: Bool, _ label: String) {
             guard condition else { fputs("FAIL: \(label)\n", stderr); exit(1) }
@@ -65,7 +66,7 @@ enum NetdiskSelfTest {
 
             _ = NSApplication.shared
             let view = WKWebView(frame: NSRect(x: 0, y: 0, width: 800, height: 500))
-            view.loadHTMLString("<html><body><span title='Test.ttf'>Test.ttf</span><span title='README.txt'>README.txt</span><span title='Pack.zip'>Pack.zip</span><input type='password' value='private-login-value'></body></html>", baseURL: nil)
+            view.loadHTMLString("<html><body><table><tr><td><input id='choose-font' type='checkbox'><span title='Test.ttf'>Test.ttf</span></td></tr></table><button onclick='window.downloadClicks=(window.downloadClicks||0)+1'>下载</button><span title='README.txt'>README.txt</span><span title='Pack.zip'>Pack.zip</span><input type='password' value='private-login-value'></body></html>", baseURL: nil)
             var loaded = false
             for _ in 0..<100 {
                 try await Task.sleep(nanoseconds: 100_000_000)
@@ -77,6 +78,13 @@ enum NetdiskSelfTest {
             let identified = try await view.evaluateJavaScript("window.fontFinderScan()") as? [String] ?? []
             check(Set(identified) == ["Test.ttf", "Pack.zip"], "DOM scanner identifies font and ZIP names only")
             check(!identified.contains("private-login-value"), "DOM scanner does not extract login fields")
+            check((try await view.evaluateJavaScript("window.downloadClicks || 0")) as? Int == 0, "scanner respects disabled automatic download")
+            _ = try await view.evaluateJavaScript("window.__fontFinderAuto = true; window.fontFinderScan(); true")
+            try await Task.sleep(nanoseconds: 500_000_000)
+            check((try await view.evaluateJavaScript("document.querySelector('#choose-font').checked && window.downloadClicks === 1")) as? Bool == true, "automatic scanner selects font and clicks visible download button")
+            _ = try await view.evaluateJavaScript("window.fontFinderScan(); true")
+            try await Task.sleep(nanoseconds: 500_000_000)
+            check((try await view.evaluateJavaScript("window.downloadClicks")) as? Int == 1, "scanner avoids repeating the same attempted download")
             view.stopLoading()
             print("SUCCESS: \(checks) netdisk importer checks passed")
         } catch { fputs("FAIL: unexpected importer error: \(error)\n", stderr); exit(1) }

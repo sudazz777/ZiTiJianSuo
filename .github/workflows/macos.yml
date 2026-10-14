@@ -39,7 +39,19 @@ jobs:
           PY
       - name: Test real font installation, ZIP cleanup and WebKit scanner
         timeout-minutes: 3
-        run: '"字体检索.app/Contents/MacOS/FontName" --netdisk-self-test "$PWD/test-fixtures"'
+        run: |
+          set +e
+          "字体检索.app/Contents/MacOS/FontName" --netdisk-self-test "$PWD/test-fixtures"
+          result=$?
+          if [ "$result" -ne 0 ]; then
+            python3 - <<'PY'
+          from pathlib import Path
+          reports=sorted((Path.home()/'Library/Logs/DiagnosticReports').glob('FontName*'),key=lambda p:p.stat().st_mtime,reverse=True)
+          for report in reports[:1]:
+            print(report.read_text(errors='replace')[:60000])
+          PY
+          fi
+          exit "$result"
       - name: Package app
         run: |
           mkdir -p release
@@ -49,6 +61,10 @@ jobs:
         timeout-minutes: 1
         continue-on-error: true
         run: '"字体检索.app/Contents/MacOS/FontName" --capture "$PWD/release/app-preview.png"'
+      - name: Capture netdisk installer preview
+        timeout-minutes: 1
+        continue-on-error: true
+        run: '"字体检索.app/Contents/MacOS/FontName" --capture "$PWD/release/netdisk-preview.png" --capture-netdisk'
       - uses: actions/upload-artifact@v4
         with:
           name: FontFinder-macOS-Universal-v1.6
