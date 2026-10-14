@@ -2,17 +2,17 @@
 
 好字体，随手就能找到。
 
-字体检索是一款原生 Mac 字体工具，本机检索可离线使用，网盘入口支持下载后查重安装。输入中文、拼音、拼音首字母或英文，查找本机已安装并启用的字体，预览不同字重，并复制中文或英文家族名称。
+字体检索是一款原生 Mac 字体工具，可离线使用。输入中文、拼音、拼音首字母或英文，查找本机已安装并启用的字体，预览不同字重，并复制中文或英文家族名称。
 
 ![字体检索软件界面](docs/assets/app-preview.png)
 
-## 下载 v1.6
+## 下载 v1.7
 
 | 下载文件 | 用途 |
 | --- | --- |
-| [下载 macOS 通用版](https://github.com/sudazz777/ZiTiJianSuo/raw/refs/heads/main/docs/downloads/FontFinder-macOS-Universal-v1.6.zip) | Apple 芯片与 Intel Mac，部署目标 macOS 13+ |
+| [下载 macOS 通用版](https://github.com/sudazz777/ZiTiJianSuo/raw/refs/heads/main/docs/downloads/FontFinder-macOS-Universal-v1.7.zip) | Apple 芯片与 Intel Mac，部署目标 macOS 13+ |
 
-v1.6 安装包由 GitHub Actions 在 macOS 上构建，包含 Apple 芯片和 Intel 两种架构。部署目标不代表所有 macOS 版本均已实机验证。v1.4、v1.5 下载包与已有 GitHub 字体库文件保留在仓库中。
+v1.7 安装包由 GitHub Actions 在 macOS 上构建，包含 Apple 芯片和 Intel 两种架构。部署目标不代表所有 macOS 版本均已实机验证。旧版下载包与已有字体库文件保留在仓库中。
 
 ## 安装
 
@@ -33,17 +33,9 @@ v1.6 安装包由 GitHub Actions 在 macOS 上构建，包含 Apple 芯片和 In
 
 安装包不含字体文件；每台 Mac 显示各自安装的字体。复制的是名称文字，当前版本没有直接连接设计软件写入字体的功能。
 
-## 百度网盘字体安装
+## v1.7 版本说明
 
-选择左侧「网盘字体安装」，粘贴分享链接或分享文字。软件识别提取码，打开百度页面，必要时在软件内登录或验证，不需要 GitHub 令牌或后台配置。
-
-软件尝试下载当前网页可见的字体与 ZIP；下载后根据内部 PostScript 名称准确查重，缺失字体安装到当前用户的 `~/Library/Fonts`。macOS 确认安装成功或所有字体已存在后，自动删除本次临时下载和解压文件。失败任务保留，已安装字体不删除。
-
-百度可能要求客户端、手动点击或额外验证，网页自动下载不能保证适用于所有分享。如果网页不能直接下载，可以用网盘客户端下载，再点击「导入下载文件」；后续查重、安装和临时清理自动完成。文件夹需在网页中打开；ZIP 内容与准确字体身份需下载后识别。
-
-导入本地文件默认保留原件，勾选对应选项后，成功处理的单独选择文件会移到废纸篓。导入文件夹始终保留原文件夹及其内容。本版本没有邮箱账号或用户云端记录。
-
-完整流程和限制见 [网盘字体安装说明](documentation/netdisk-installation.md)。
+移除网盘分享链接、网页登录、字体下载、自动安装与临时文件清理功能，以及相关代码和构建依赖。软件提供本机字体检索、字重预览、名称复制、收藏和别名功能。
 
 ## 源码构建
 
@@ -53,7 +45,7 @@ v1.6 安装包由 GitHub Actions 在 macOS 上构建，包含 Apple 芯片和 In
 bash build.sh
 ```
 
-脚本编译 arm64 和 x86_64 两个分支，合并为 `字体检索.app` 并进行本地签名。主要使用 SwiftUI、AppKit、CoreText、WebKit 和系统 libarchive，无需额外运行环境。libarchive API 头文件及其版权声明保存在 `Tools/libarchive`。
+脚本编译 arm64 和 x86_64 两个分支，合并为 `字体检索.app` 并进行本地签名。主要使用 SwiftUI、AppKit 和 CoreText，无需额外运行环境。
 
 在 macOS 上运行内置自测：
 
@@ -61,9 +53,9 @@ bash build.sh
 "字体检索.app/Contents/MacOS/FontName" --self-test
 ```
 
-内置测试需要 macOS 字体服务与剪贴板。构建流程还运行网盘安装测试，覆盖真实字体持久安装、查重、嵌套 ZIP、成功清理与失败保留，以及 WebKit 本地页面的识别和下载按钮操作。百度实际登录、验证码与分享下载尚未实测，这些测试不代表所有百度分享均可自动下载。
+内置测试需要 macOS 字体服务与剪贴板。GitHub Actions 在 macOS 14 上构建 Universal 应用并运行本机检索测试。
 
-验证记录见 [v1.6 构建测试记录](documentation/v1.6-validation.md)。随原始源码提供的旧记录保存在 [documentation/supplied-validation.txt](documentation/supplied-validation.txt)。
+验证记录见 [v1.7 构建测试记录](documentation/v1.7-validation.md)。随原始源码提供的旧记录保存在 [documentation/supplied-validation.txt](documentation/supplied-validation.txt)。
 
 ## 发布页面
 
