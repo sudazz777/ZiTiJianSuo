@@ -6,13 +6,13 @@
 
 ![字体检索软件界面](docs/assets/app-preview.png)
 
-## 下载 v1.4
+## 下载 v1.5
 
 | 下载文件 | 用途 |
 | --- | --- |
-| [下载 macOS 通用版](https://github.com/sudazz777/ZiTiJianSuo/raw/refs/heads/main/docs/downloads/FontFinder-macOS-Universal-v1.4.zip) | Apple 芯片与 Intel Mac，部署目标 macOS 13+ |
+| [下载 macOS 通用版](https://github.com/sudazz777/ZiTiJianSuo/raw/refs/heads/main/docs/downloads/FontFinder-macOS-Universal-v1.5.zip) | Apple 芯片与 Intel Mac，部署目标 macOS 13+ |
 
-安装包和源码下载包来自上传的 v1.4 交付文件，保持原始内容与校验值。部署目标不代表所有 macOS 版本均已实机验证。
+v1.5 安装包由 GitHub Actions 在 macOS 上构建，包含 Apple 芯片和 Intel 两种架构。部署目标不代表所有 macOS 版本均已实机验证。原始 v1.4 下载包保留在仓库中。
 
 ## 安装
 
@@ -33,6 +33,16 @@
 
 安装包不含字体文件；每台 Mac 显示各自安装的字体。复制的是名称文字，当前版本没有直接连接设计软件写入字体的功能。
 
+## 云端字体与管理员上传
+
+软件左侧选择「云端字体」，可无需登录浏览公开字体库，下载单个文件或批量下载尚未同步的字体。下载经过大小及 SHA-256 校验，之后可打开 macOS 字体册安装。
+
+维护者 `sudazz777` 点击「管理员连接」，使用仅授权本仓库 Contents 读写权限的 GitHub 细粒度访问令牌连接。凭证保存在 Mac 钥匙串；普通用户无需提供凭证，也无法上传。
+
+上传 TTF、OTF 或 TTC 文件后，软件自动更新公开字体清单。每个文件上限 50 MiB；重复内容不再上传，同名文件的新版本更新清单。初始字体库为空，需由维护者上传获准公开分发的字体。
+
+完整操作步骤见 [云端字体使用说明](documentation/cloud-fonts.md)。字体库需要公开仓库，无法通过不同文件夹提供私有用户备份。
+
 ## 源码构建
 
 在 macOS 上安装 Xcode 或 Apple Command Line Tools，在仓库根目录运行：
@@ -49,7 +59,13 @@ bash build.sh
 "字体检索.app/Contents/MacOS/FontName" --self-test
 ```
 
-内置测试需要 macOS 字体服务与剪贴板。本次导入环境为 Linux，没有重新运行 macOS 构建和应用自测。随包提供的测试记录保存在 [documentation/supplied-validation.txt](documentation/supplied-validation.txt)，作为原始交付记录保留。
+内置测试需要 macOS 字体服务与剪贴板。v1.5 已在 GitHub Actions 的 macOS 14 环境完成 Universal 构建、73 项本机测试和 61 项云端测试。云端测试使用模拟 GitHub 响应，没有使用维护者的真实访问令牌或上传实际字体。随原始交付提供的测试记录保存在 [documentation/supplied-validation.txt](documentation/supplied-validation.txt)。
+
+运行云端测试：
+
+```bash
+"字体检索.app/Contents/MacOS/FontName" --cloud-self-test
+```
 
 ## 发布页面
 
