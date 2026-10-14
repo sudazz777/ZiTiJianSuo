@@ -3,9 +3,9 @@ name: Build and test macOS app
 on:
   push:
     branches: [main, 'codex/**']
-    paths: ['Source/**', 'Info.plist', 'build.sh', '.github/workflows/macos.yml']
+    paths: ['Tools/**', 'Source/**', 'Info.plist', 'build.sh', '.github/workflows/macos.yml']
   pull_request:
-    paths: ['Source/**', 'Info.plist', 'build.sh', '.github/workflows/macos.yml']
+    paths: ['Tools/**', 'Source/**', 'Info.plist', 'build.sh', '.github/workflows/macos.yml']
   workflow_dispatch:
 
 permissions:
