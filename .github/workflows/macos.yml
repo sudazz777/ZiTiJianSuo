@@ -1,0 +1,35 @@
+name: Build and test macOS app
+
+on:
+  push:
+    branches: [main, 'codex/**']
+    paths: ['Source/**', 'Info.plist', 'build.sh', '.github/workflows/macos.yml']
+  pull_request:
+    paths: ['Source/**', 'Info.plist', 'build.sh', '.github/workflows/macos.yml']
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: macos-14
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build Universal app
+        run: bash build.sh
+      - name: Test local font features
+        run: '"字体检索.app/Contents/MacOS/FontName" --self-test'
+      - name: Test cloud library and upload permissions
+        run: '"字体检索.app/Contents/MacOS/FontName" --cloud-self-test'
+      - name: Package app
+        run: |
+          mkdir -p release
+          ditto -c -k --keepParent "字体检索.app" release/FontFinder-macOS-Universal-v1.5.zip
+          shasum -a 256 release/FontFinder-macOS-Universal-v1.5.zip > release/SHA256SUMS.txt
+      - uses: actions/upload-artifact@v4
+        with:
+          name: FontFinder-macOS-Universal-v1.5
+          path: release/
+          retention-days: 30
