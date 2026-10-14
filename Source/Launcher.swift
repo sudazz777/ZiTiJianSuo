@@ -24,7 +24,6 @@ import SwiftUI
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         model.reload()
-        if CommandLine.arguments.contains("--capture-netdisk") { model.showCloudLibrary = true }
         if let index = CommandLine.arguments.firstIndex(of: "--capture"), index + 1 < CommandLine.arguments.count {
             let path = CommandLine.arguments[index + 1]
             waitThenCapture(path, attempts: 40)
@@ -104,13 +103,10 @@ import SwiftUI
         return item
     }
     @objc func focusSearch() { NotificationCenter.default.post(name: .focusFontSearch, object: nil) }
-    @objc func refresh() {
-        if model.showCloudLibrary { NotificationCenter.default.post(name: .refreshCloudFonts, object: nil) }
-        else { model.reload() }
-    }
-    @objc func favorite() { if !model.showCloudLibrary, let f = model.selected { model.toggleFavorite(f.id) } }
+    @objc func refresh() { model.reload() }
+    @objc func favorite() { if let f = model.selected { model.toggleFavorite(f.id) } }
     @objc func copyName(_ sender: NSMenuItem) {
-        guard !model.showCloudLibrary, let font = model.selected else { return }
+        guard let font = model.selected else { return }
         switch sender.tag {
         case 0:
             if let c = model.chineseName(font) { model.copy(c, font: font, label: "中文名") }
@@ -121,8 +117,8 @@ import SwiftUI
     }
     @objc func about() {
         NSApp.orderFrontStandardAboutPanel(options: [
-            .applicationName: "字体检索 Font Finder", .applicationVersion: "1.6",
-            .credits: NSAttributedString(string: "好字体，随手就能找到。\n本机字体检索 · 网盘字体安装\n分享链接 · 查重安装 · 临时文件清理\n中文、拼音、英文搜索\nApple 芯片与 Intel 通用")
+            .applicationName: "字体检索 Font Finder", .applicationVersion: "1.7",
+            .credits: NSAttributedString(string: "好字体，随手就能找到。\n本机字体检索 · 离线使用\n中文、拼音、英文搜索\nApple 芯片与 Intel 通用")
         ])
     }
 }
@@ -132,10 +128,6 @@ import SwiftUI
         if CommandLine.arguments.contains("--self-test") { SelfTest.run(); return }
         if CommandLine.arguments.contains("--cloud-self-test") {
             Task { @MainActor in await CloudSelfTest.run(); exit(0) }
-            RunLoop.main.run(); return
-        }
-        if CommandLine.arguments.contains("--netdisk-self-test") {
-            Task { @MainActor in await NetdiskSelfTest.run(); exit(0) }
             RunLoop.main.run(); return
         }
         let app = NSApplication.shared

@@ -44,7 +44,6 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
     @Published var recent: [String]
     @Published var custom: [String: CustomNames]
     @Published var showEditor = false
-    @Published var showCloudLibrary = false
     @Published var faceSelections: [String: String] = [:]
     private let defaults: UserDefaults
     private var toastWork: DispatchWorkItem?
