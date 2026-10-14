@@ -74,7 +74,7 @@ enum NetdiskSelfTest {
             }
             check(loaded, "WebKit loads local DOM test fixture")
             let script = NetdiskWebAutomation.script.replacingOccurrences(of: "if (location.hostname !== 'pan.baidu.com') return [];", with: "")
-            _ = try await view.evaluateJavaScript(script)
+            _ = try await view.evaluateJavaScript(script + "\ntrue;")
             let identified = try await view.evaluateJavaScript("window.fontFinderScan()") as? [String] ?? []
             check(Set(identified) == ["Test.ttf", "Pack.zip"], "DOM scanner identifies font and ZIP names only")
             check(!identified.contains("private-login-value"), "DOM scanner does not extract login fields")
