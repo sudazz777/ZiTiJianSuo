@@ -120,8 +120,8 @@ import SwiftUI
     }
     @objc func about() {
         NSApp.orderFrontStandardAboutPanel(options: [
-            .applicationName: "字体检索 Font Finder", .applicationVersion: "1.5",
-            .credits: NSAttributedString(string: "好字体，随手就能找到。\n本机字体检索 · 云端字体下载\nGitHub 管理员上传 · 增量下载与校验\n中文、拼音、英文搜索\nApple 芯片与 Intel 通用")
+            .applicationName: "字体检索 Font Finder", .applicationVersion: "1.6",
+            .credits: NSAttributedString(string: "好字体，随手就能找到。\n本机字体检索 · 云端字体下载\n邮箱账号 · 管理员上传 · 下载记录\n中文、拼音、英文搜索\nApple 芯片与 Intel 通用")
         ])
     }
 }
@@ -131,6 +131,10 @@ import SwiftUI
         if CommandLine.arguments.contains("--self-test") { SelfTest.run(); return }
         if CommandLine.arguments.contains("--cloud-self-test") {
             Task { @MainActor in await CloudSelfTest.run(); exit(0) }
+            RunLoop.main.run(); return
+        }
+        if CommandLine.arguments.contains("--account-self-test") {
+            Task { @MainActor in await EmailAccountSelfTest.run(); exit(0) }
             RunLoop.main.run(); return
         }
         let app = NSApplication.shared

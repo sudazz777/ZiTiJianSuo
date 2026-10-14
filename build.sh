@@ -16,6 +16,16 @@ for ARCH in arm64 x86_64; do
 done
 xcrun lipo -create "$BUILD/FontName-arm64" "$BUILD/FontName-x86_64" -output "$APP/Contents/MacOS/FontName"
 cp "$ROOT/Info.plist" "$APP/Contents/Info.plist"
+if [ -f "$ROOT/Config/CloudAccount.json" ]; then
+  cp "$ROOT/Config/CloudAccount.json" "$APP/Contents/Resources/CloudAccount.json"
+else
+  rm -f "$APP/Contents/Resources/CloudAccount.json"
+fi
+if [ -f "$ROOT/Config/FontShare.json" ]; then
+  cp "$ROOT/Config/FontShare.json" "$APP/Contents/Resources/FontShare.json"
+else
+  rm -f "$APP/Contents/Resources/FontShare.json"
+fi
 if [ -f "$ROOT/AppIcon.icns" ]; then cp "$ROOT/AppIcon.icns" "$APP/Contents/Resources/"; fi
 codesign --force --sign - "$APP"
 echo "Built $APP"

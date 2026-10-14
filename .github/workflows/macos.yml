@@ -3,9 +3,9 @@ name: Build and test macOS app
 on:
   push:
     branches: [main, 'codex/**']
-    paths: ['Source/**', 'Info.plist', 'build.sh', '.github/workflows/macos.yml']
+    paths: ['Source/**', 'Info.plist', 'build.sh', 'Config/**', 'supabase/**', 'Tests/**', '.github/workflows/macos.yml']
   pull_request:
-    paths: ['Source/**', 'Info.plist', 'build.sh', '.github/workflows/macos.yml']
+    paths: ['Source/**', 'Info.plist', 'build.sh', 'Config/**', 'supabase/**', 'Tests/**', '.github/workflows/macos.yml']
   workflow_dispatch:
 
 permissions:
@@ -23,17 +23,50 @@ jobs:
         run: '"字体检索.app/Contents/MacOS/FontName" --self-test'
       - name: Test cloud library and upload permissions
         run: '"字体检索.app/Contents/MacOS/FontName" --cloud-self-test'
+      - name: Test email account client
+        run: '"字体检索.app/Contents/MacOS/FontName" --account-self-test'
       - name: Package app
         run: |
           mkdir -p release
-          ditto -c -k --keepParent "字体检索.app" release/FontFinder-macOS-Universal-v1.5.zip
-          shasum -a 256 release/FontFinder-macOS-Universal-v1.5.zip > release/SHA256SUMS.txt
+          FONTFINDER_VERSION=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' Info.plist)
+          echo "FONTFINDER_VERSION=$FONTFINDER_VERSION" >> "$GITHUB_ENV"
+          ditto -c -k --keepParent "字体检索.app" "release/FontFinder-macOS-Universal-v$FONTFINDER_VERSION.zip"
+          shasum -a 256 "release/FontFinder-macOS-Universal-v$FONTFINDER_VERSION.zip" > release/SHA256SUMS.txt
       - name: Capture app preview
         timeout-minutes: 1
         continue-on-error: true
         run: '"字体检索.app/Contents/MacOS/FontName" --capture "$PWD/release/app-preview.png"'
       - uses: actions/upload-artifact@v4
         with:
-          name: FontFinder-macOS-Universal-v1.5
+          name: FontFinder-macOS-Universal-v${{ env.FONTFINDER_VERSION }}
           path: release/
           retention-days: 30
+  backend:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+      - run: node --test Tests/upload-backend.test.mjs
+  account-isolation:
+    runs-on: ubuntu-latest
+    services:
+      postgres:
+        image: postgres:16
+        env:
+          POSTGRES_PASSWORD: test-password
+        ports: ['5432:5432']
+        options: >-
+          --health-cmd pg_isready --health-interval 10s
+          --health-timeout 5s --health-retries 5
+    steps:
+      - uses: actions/checkout@v4
+      - name: Test real PostgreSQL row-level access policies
+        run: psql -v ON_ERROR_STOP=1 -f Tests/account-rls.sql
+        env:
+          PGHOST: localhost
+          PGPORT: '5432'
+          PGUSER: postgres
+          PGPASSWORD: test-password
+          PGDATABASE: postgres

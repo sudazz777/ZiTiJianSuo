@@ -1,0 +1,13 @@
+project_id = "font-finder-accounts"
+
+[functions.font-admin-upload]
+# Verify through Auth /user inside the function. This supports current asymmetric
+# Supabase JWT signing keys as well as legacy projects.
+verify_jwt = false
+
+[functions.font-baidu-connect]
+verify_jwt = false
+[functions.font-library]
+verify_jwt = false
+[functions.font-download]
+verify_jwt = false

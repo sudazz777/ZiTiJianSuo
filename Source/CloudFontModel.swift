@@ -2,6 +2,7 @@ import AppKit
 import CoreText
 import SwiftUI
 import UniformTypeIdentifiers
+import Combine
 
 struct PendingCloudFont {
     let data: Data
@@ -16,42 +17,43 @@ struct PendingCloudFont {
     @Published var downloaded: Set<String> = []
     @Published var isLoading = false
     @Published var isBusy = false
-    @Published var isConnecting = false
-    @Published var adminLogin: String?
     @Published var errorMessage: String?
     @Published var status = "公开字体库 · 下载无需登录"
     @Published var pending: PendingCloudFont?
     @Published var showUpload = false
-    @Published var showAdmin = false
-    private var token: String?
-    private var restoredCredential = false
-    private let client: GitHubFontClient
+    @Published var showAccount = false
+    @Published var accountFilter = "全部字体"
+    let account = EmailAccountModel()
+    let share = FontShareConfiguration.load()
+    private var accountObservation: AnyCancellable?
     let store: CloudFontStore
 
-    init(client: GitHubFontClient = GitHubFontClient(), store: CloudFontStore = CloudFontStore()) {
-        self.client = client; self.store = store
+    init(store: CloudFontStore = CloudFontStore()) {
+        self.store = store
+        accountObservation = account.objectWillChange.sink { [weak self] _ in self?.objectWillChange.send() }
         if let data = try? Data(contentsOf: store.catalogURL), let catalog = try? CloudCatalog.decode(data) { fonts = catalog.fonts }
     }
     var visible: [CloudFont] {
-        fonts.filter { $0.matches(query) }.sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
+        fonts.filter { font in
+            let permitted = account.user == nil || accountFilter == "全部字体" ||
+                (accountFilter == "我的收藏" ? account.favorites.contains(font.id) : account.recordedFontIDs.contains(font.id))
+            return permitted && font.matches(query)
+        }.sorted { $0.displayName.localizedStandardCompare($1.displayName) == .orderedAscending }
     }
     var missing: [CloudFont] { fonts.filter { !downloaded.contains($0.id) } }
-    var controlsDisabled: Bool { isBusy || isLoading || isConnecting }
+    var controlsDisabled: Bool { isBusy || isLoading || account.isWorking }
 
     func open() async {
         await refresh()
-        if !restoredCredential {
-            restoredCredential = true
-            do { if let stored = try GitHubCredentialStore.read() { try await authenticate(stored) } }
-            catch { errorMessage = error.localizedDescription }
-        }
+        await account.restore()
     }
     func refresh() async {
         guard !controlsDisabled else { return }
+        guard account.configured else { status = "邮箱账号与百度网盘后台尚未配置"; return }
         isLoading = true; errorMessage = nil
         defer { isLoading = false }
         do {
-            let catalog = try await client.catalog()
+            let catalog = try await account.catalog()
             fonts = catalog.fonts
             downloaded.formIntersection(Set(fonts.map(\.id)))
             do { try store.prepare(); try catalog.encoded().write(to: store.catalogURL, options: .atomic) }
@@ -69,41 +71,14 @@ struct PendingCloudFont {
             Set(fonts.filter { store.isValid($0) }.map(\.id))
         }.value
     }
-    private func authenticate(_ candidate: String) async throws {
-        isConnecting = true
-        defer { isConnecting = false }
-        let login = try await client.authenticate(candidate)
-        token = candidate; adminLogin = login
-    }
-    func connect(_ candidate: String) async -> Bool {
-        guard !controlsDisabled else { return false }
-        errorMessage = nil
-        let cleaned = candidate.trimmingCharacters(in: .whitespacesAndNewlines)
-        guard !cleaned.isEmpty, !cleaned.contains(where: { $0.isWhitespace }) else {
-            errorMessage = "请输入有效的 GitHub 访问令牌。"; return false
-        }
-        do {
-            try await authenticate(cleaned)
-            do { try GitHubCredentialStore.save(cleaned) }
-            catch { token = nil; adminLogin = nil; throw error }
-            status = "管理员 \(adminLogin ?? "") 已连接"
-            return true
-        } catch { errorMessage = error.localizedDescription; return false }
-    }
-    func disconnect() {
-        guard !controlsDisabled else { return }
-        do {
-            try GitHubCredentialStore.remove()
-            token = nil; adminLogin = nil; status = "已断开管理员连接 · 下载无需登录"
-        } catch { errorMessage = error.localizedDescription }
-    }
     func download(_ font: CloudFont) async {
         guard !controlsDisabled else { return }
         isBusy = true; errorMessage = nil; status = "正在下载：\(font.displayName)"
         defer { isBusy = false }
         do {
-            try await client.download(font, store: store)
+            try await account.download(font, store: store)
             downloaded.insert(font.id); status = "下载完成：\(font.displayName) · 点击安装打开字体册"
+            await account.recordDownload(font)
         } catch { errorMessage = error.localizedDescription; status = "下载未完成" }
     }
     func syncMissing() async {
@@ -116,8 +91,9 @@ struct PendingCloudFont {
         for font in targets {
             status = "正在下载 \(completed + 1)/\(targets.count)：\(font.displayName)"
             do {
-                try await client.download(font, store: store)
+                try await account.download(font, store: store)
                 downloaded.insert(font.id); completed += 1
+                await account.recordDownload(font)
             } catch {
                 errorMessage = "\(font.displayName)：\(error.localizedDescription)"; break
             }
@@ -138,8 +114,14 @@ struct PendingCloudFont {
         do { try store.prepare(); NSWorkspace.shared.open(store.directory) }
         catch { errorMessage = error.localizedDescription }
     }
+    func restoreAccountFonts() async {
+        guard account.user != nil, !controlsDisabled else { return }
+        await account.refreshRecords()
+        let wanted = account.recordedFontIDs.union(account.favorites)
+        for font in fonts where wanted.contains(font.id) && !downloaded.contains(font.id) { await download(font) }
+    }
     func chooseUpload() async {
-        guard !controlsDisabled, token != nil, adminLogin != nil else { return }
+        guard !controlsDisabled, account.isAdmin else { return }
         let panel = NSOpenPanel()
         panel.title = "选择要公开上传的字体"
         panel.prompt = "选择字体"
@@ -155,12 +137,12 @@ struct PendingCloudFont {
                 defer { if access { url.stopAccessingSecurityScopedResource() } }
                 let values = try url.resourceValues(forKeys: [.fileSizeKey, .isRegularFileKey])
                 guard values.isRegularFile == true, let size = values.fileSize, size > 0,
-                      size <= CloudConfiguration.maximumFontSize,
+                      size <= EmailAccountConfiguration.maximumUploadSize,
                       CloudConfiguration.extensions.contains(url.pathExtension.lowercased()) else {
-                    throw CloudError.message("请选择不超过 50 MB 的 TTF、OTF 或 TTC 字体文件。")
+                    throw CloudError.message("请选择不超过 10 MiB 的 TTF、OTF 或 TTC 字体文件。")
                 }
                 let data = try Data(contentsOf: url)
-                guard data.count <= CloudConfiguration.maximumFontSize,
+                guard data.count <= EmailAccountConfiguration.maximumUploadSize,
                       let descriptors = CTFontManagerCreateFontDescriptorsFromData(data as CFData) as? [CTFontDescriptor],
                       !descriptors.isEmpty else { throw CloudError.message("此文件不是可读取的字体。") }
                 let fonts = descriptors.map { CTFontCreateWithFontDescriptor($0, 12, nil) }
@@ -172,7 +154,7 @@ struct PendingCloudFont {
         } catch { errorMessage = error.localizedDescription }
     }
     func uploadPending(name: String) async -> Bool {
-        guard !controlsDisabled, let pending, let token, adminLogin != nil else { return false }
+        guard !controlsDisabled, let pending, account.isAdmin else { return false }
         let title = name.trimmingCharacters(in: .whitespacesAndNewlines)
         guard !title.isEmpty else { errorMessage = "请填写字体名称。"; return false }
         isBusy = true; errorMessage = nil; status = "正在上传：\(title)"
@@ -183,7 +165,8 @@ struct PendingCloudFont {
             let font = CloudFont(id: hash, displayName: title, fileName: pending.fileName,
                                  path: "fonts/files/\(hash).\(ext)", size: pending.data.count, sha256: hash,
                                  postScriptNames: pending.postScriptNames, uploadedAt: ISO8601DateFormatter().string(from: Date()))
-            let catalog = try await client.upload(data: pending.data, font: font, token: token)
+            let result = try await account.upload(data: pending.data, font: font)
+            let catalog = result.catalog
             fonts = catalog.fonts
             downloaded.formIntersection(Set(fonts.map(\.id)))
             do {
@@ -194,6 +177,7 @@ struct PendingCloudFont {
                 try store.saveDownload(staged, font: font)
                 downloaded.insert(font.id)
             } catch { errorMessage = "已上传成功，但本机缓存未保存：\(error.localizedDescription)" }
+            if !result.auditRecorded { errorMessage = "字体已上传成功，但账号上传记录未保存，请维护者检查后台。" }
             self.pending = nil; showUpload = false; status = "已公开上传：\(title) · 用户刷新后即可下载"
             return true
         } catch { errorMessage = error.localizedDescription; status = "上传未完成"; return false }

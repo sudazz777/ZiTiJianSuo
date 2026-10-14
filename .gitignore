@@ -6,4 +6,8 @@ __MACOSX/
 .env
 .env.*
 !.env.example
+Config/CloudAccount.json
+supabase/.env
+supabase/.temp/
+*.pem
 

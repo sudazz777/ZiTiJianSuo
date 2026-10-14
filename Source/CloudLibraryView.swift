@@ -21,19 +21,27 @@ struct CloudLibraryView: View {
                         .font(.system(size: 11)).foregroundColor(Palette.muted)
                 }
                 Spacer()
-                if model.adminLogin != nil {
+                if model.account.isAdmin {
                     Button { Task { await model.chooseUpload() } } label: { Label("上传字体", systemImage: "icloud.and.arrow.up") }
                         .buttonStyle(QuietButton()).disabled(model.controlsDisabled)
                 }
                 Button { Task { await model.syncMissing() } } label: { Label("下载未同步（\(model.missing.count)）", systemImage: "icloud.and.arrow.down") }
                     .buttonStyle(QuietButton(active: true)).disabled(model.controlsDisabled || model.missing.isEmpty)
             }.padding(24)
-            if let error = model.errorMessage {
+            if model.account.user != nil {
+                HStack {
+                    Picker("字体分类", selection: $model.accountFilter) { Text("全部字体").tag("全部字体"); Text("我的收藏").tag("我的收藏"); Text("我的下载记录").tag("我的下载记录") }
+                        .pickerStyle(.segmented).frame(maxWidth: 420)
+                    Spacer()
+                    Button("按账号记录恢复") { Task { await model.restoreAccountFonts() } }.buttonStyle(QuietButton()).disabled(model.controlsDisabled)
+                }.padding(.horizontal, 24).padding(.bottom, 15)
+            }
+            if let error = model.errorMessage ?? model.account.errorMessage {
                 HStack(alignment: .top, spacing: 9) {
                     Image(systemName: "exclamationmark.circle")
                     Text(error).textSelection(.enabled)
                     Spacer()
-                    Button { model.errorMessage = nil } label: { Image(systemName: "xmark") }.buttonStyle(.plain)
+                    Button { model.errorMessage = nil; model.account.errorMessage = nil } label: { Image(systemName: "xmark") }.buttonStyle(.plain)
                 }.font(.system(size: 11)).foregroundColor(Color(red: 0.55, green: 0.24, blue: 0.13))
                     .padding(12).background(Color(red: 0.99, green: 0.94, blue: 0.88)).cornerRadius(8).padding(.horizontal, 24).padding(.bottom, 12)
             }
@@ -41,10 +49,18 @@ struct CloudLibraryView: View {
                 Spacer()
                 VStack(spacing: 13) {
                     Image(systemName: "icloud").font(.system(size: 38, weight: .light)).foregroundColor(Palette.green)
-                    Text(model.query.isEmpty ? "字体库还没有字体" : "没有找到匹配字体").font(.system(size: 18, weight: .medium))
-                    Text(model.query.isEmpty ? "维护者上传后，刷新即可下载。\n换电脑时，在这里恢复需要的字体。" : "试试中文、拼音或英文名称。")
+                    Text(!model.account.configured ? "自动同步服务尚未配置" : model.query.isEmpty ? "字体库还没有字体" : "没有找到匹配字体").font(.system(size: 18, weight: .medium))
+                    Text(!model.account.configured ? "可先打开百度网盘分享下载字体。\n后台配置完成后，这里会显示可自动同步的字体。" : model.query.isEmpty ? "维护者上传后，刷新即可下载。\n换电脑时，在这里恢复需要的字体。" : "试试中文、拼音或英文名称。")
                         .font(.system(size: 12)).foregroundColor(Palette.muted).multilineTextAlignment(.center).lineSpacing(5)
                     if model.isLoading { ProgressView().controlSize(.small) }
+                    if let share = model.share {
+                        Button("打开百度网盘字体分享") { NSWorkspace.shared.open(share.url) }.buttonStyle(QuietButton(active: true))
+                        HStack(spacing: 9) {
+                            Text("提取码：\(share.extractionCode)").font(.system(size: 11)).foregroundColor(Palette.muted)
+                            Button("复制提取码") { NSPasteboard.general.clearContents(); NSPasteboard.general.setString(share.extractionCode, forType: .string) }
+                                .buttonStyle(QuietButton())
+                        }
+                    }
                 }.frame(maxWidth: .infinity)
                 Spacer()
             } else {
@@ -58,15 +74,18 @@ struct CloudLibraryView: View {
                 if model.controlsDisabled { ProgressView().controlSize(.small).scaleEffect(0.7) }
                 Text(model.status).lineLimit(2)
                 Spacer()
+                if let share = model.share {
+                    Button("网盘分享下载") { NSWorkspace.shared.open(share.url) }.buttonStyle(.plain).foregroundColor(Palette.green)
+                }
                 Button("打开下载文件夹") { model.revealFolder() }.buttonStyle(.plain).foregroundColor(Palette.green)
-                Button(model.adminLogin.map { "管理员：\($0)" } ?? "管理员连接") { model.errorMessage = nil; model.showAdmin = true }
+                Button(model.account.user?.email ?? "邮箱登录 / 注册") { model.account.errorMessage = nil; model.showAccount = true }
                     .buttonStyle(.plain).foregroundColor(Palette.green).disabled(model.controlsDisabled)
             }.font(.system(size: 10)).foregroundColor(Palette.muted).padding(.horizontal, 24).frame(height: 45)
                 .background(Color.white.opacity(0.6))
         }.task { await model.open() }
             .onReceive(NotificationCenter.default.publisher(for: .refreshCloudFonts)) { _ in Task { await model.refresh() } }
             .onReceive(NotificationCenter.default.publisher(for: .focusFontSearch)) { _ in searchFocused = true }
-            .sheet(isPresented: $model.showAdmin) { GitHubAdminView(model: model) }
+            .sheet(isPresented: $model.showAccount) { EmailAccountView(account: model.account) }
             .sheet(isPresented: $model.showUpload, onDismiss: { model.pending = nil }) {
                 if let pending = model.pending { CloudUploadView(model: model, pending: pending) }
             }
@@ -87,6 +106,11 @@ struct CloudFontRow: View {
                 }
             }
             Spacer()
+            if model.account.user != nil {
+                Button { Task { await model.account.toggleFavorite(font) } } label: {
+                    Image(systemName: model.account.favorites.contains(font.id) ? "star.fill" : "star").foregroundColor(Palette.green)
+                }.buttonStyle(.plain).disabled(model.controlsDisabled).help("收藏到当前邮箱账号")
+            }
             if model.downloaded.contains(font.id) {
                 Text("已下载").font(.system(size: 10)).foregroundColor(Palette.green)
                 Button("在 Finder 中显示") { model.reveal(font) }.buttonStyle(QuietButton()).disabled(model.controlsDisabled)
@@ -97,44 +121,6 @@ struct CloudFontRow: View {
             }
         }.padding(18).background(Color.white.opacity(0.8)).cornerRadius(10)
             .overlay(RoundedRectangle(cornerRadius: 10).stroke(Palette.line, lineWidth: 1))
-    }
-}
-
-struct GitHubAdminView: View {
-    @ObservedObject var model: CloudFontModel
-    @Environment(\.dismiss) private var dismiss
-    @ViewState private var token = ""
-    var body: some View {
-        VStack(alignment: .leading, spacing: 17) {
-            Text("连接字体库管理员").font(.system(size: 21, weight: .semibold))
-            Text("只有 \(CloudConfiguration.owner) 可以上传；其他用户下载无需登录。")
-                .font(.system(size: 12)).foregroundColor(Palette.muted)
-            if let login = model.adminLogin {
-                Label("已连接：\(login)", systemImage: "checkmark.shield").foregroundColor(Palette.green)
-                Text("令牌仅保存在当前 Mac 的钥匙串中，不会上传到仓库。换电脑需要重新连接。")
-                    .font(.system(size: 12)).foregroundColor(Palette.muted)
-            } else {
-                Text("创建细粒度访问令牌，选择 ZiTiJianSuo 仓库，并授予 Contents（内容）读写权限。")
-                    .font(.system(size: 12)).foregroundColor(Palette.muted).fixedSize(horizontal: false, vertical: true)
-                Link("前往 GitHub 创建访问令牌 ↗", destination: URL(string: "https://github.com/settings/personal-access-tokens/new")!)
-                    .font(.system(size: 12)).foregroundColor(Palette.green)
-                SecureField("粘贴 GitHub 访问令牌", text: $token).textFieldStyle(.roundedBorder).disabled(model.isConnecting)
-                Text("连接时验证账号和仓库权限。验证通过后，令牌保存在 Mac 钥匙串中。")
-                    .font(.system(size: 11)).foregroundColor(Palette.muted)
-            }
-            if let error = model.errorMessage { Text(error).font(.system(size: 11)).foregroundColor(.red).fixedSize(horizontal: false, vertical: true) }
-            HStack {
-                if model.adminLogin != nil { Button("断开并移除凭证") { model.disconnect() }.buttonStyle(QuietButton()).disabled(model.controlsDisabled) }
-                if model.isConnecting { ProgressView().controlSize(.small) }
-                Spacer()
-                Button("关闭") { token = ""; dismiss() }.buttonStyle(QuietButton()).disabled(model.isConnecting)
-                if model.adminLogin == nil {
-                    Button("连接") { Task { if await model.connect(token) { token = ""; dismiss() } } }
-                        .buttonStyle(QuietButton(active: true)).disabled(token.isEmpty || model.controlsDisabled)
-                }
-            }
-        }.padding(28).frame(width: 480).background(Palette.canvas).foregroundColor(Palette.ink)
-            .interactiveDismissDisabled(model.isConnecting).onDisappear { token = "" }
     }
 }
 
