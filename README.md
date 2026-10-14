@@ -11,8 +11,6 @@
 | 下载文件 | 用途 |
 | --- | --- |
 | [下载 macOS 通用版](https://github.com/sudazz777/ZiTiJianSuo/raw/refs/heads/main/docs/downloads/FontFinder-macOS-Universal-v1.4.zip) | Apple 芯片与 Intel Mac，部署目标 macOS 13+ |
-| [下载源码](https://github.com/sudazz777/ZiTiJianSuo/raw/refs/heads/main/docs/downloads/FontFinder-Source-v1.4.zip) | Swift 源码、构建脚本和说明文档 |
-| [SHA-256 校验文件](docs/downloads/SHA256SUMS.txt) | 检查下载文件完整性 |
 
 安装包和源码下载包来自上传的 v1.4 交付文件，保持原始内容与校验值。部署目标不代表所有 macOS 版本均已实机验证。
 
@@ -57,7 +55,7 @@ bash build.sh
 
 已发布：[打开字体检索下载页面](https://font-finder-release-sudazz777.meisen111.chatgpt.site)。Sites 当前使用默认私有访问设置，仅网站所有者可访问；仓库中的下载链接也可直接使用。
 
-中文发布页面位于 [docs/index.html](docs/index.html)，包含软件实际截图、功能介绍、版本说明、安装指南，以及真实的 macOS 和源码下载按钮。页面无需构建，也没有第三方前端依赖。
+中文发布页面位于 [docs/index.html](docs/index.html)，包含软件实际截图、功能介绍、版本说明、安装指南，以及真实的 macOS 下载按钮。页面无需构建，也没有第三方前端依赖。
 
 本地预览：
 
