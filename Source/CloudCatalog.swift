@@ -6,7 +6,8 @@ enum CloudConfiguration {
     static let repository = "ZiTiJianSuo"
     static let branch = "main"
     static let maximumFontSize = 50 * 1024 * 1024
-    static let maximumCatalogSize = 2 * 1024 * 1024
+    // GitHub's Contents API returns inline base64 only for files below 1 MiB.
+    static let maximumCatalogSize = 900 * 1024
     static let extensions = ["ttf", "otf", "ttc"]
     static let repositoryURL = URL(string: "https://github.com/\(owner)/\(repository)")!
     static func rawURL(path: String, revision: String = branch) -> URL {
