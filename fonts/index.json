@@ -1,4 +1,33 @@
 {
-  "schemaVersion": 1,
-  "fonts": []
+  "fonts" : [
+    {
+      "displayName" : "Alimama FangYuanTi VF Thin",
+      "fileName" : "阿里妈妈方圆体.ttf",
+      "id" : "c73d546e2a75f4184944f372cdd41677999fe7dd53fc66c690dc5f01f99002cf",
+      "path" : "fonts/files/c73d546e2a75f4184944f372cdd41677999fe7dd53fc66c690dc5f01f99002cf.ttf",
+      "postScriptNames" : [
+        "AlimamaFangYuanTiVF-Bold",
+        "AlimamaFangYuanTiVF-Bold-Round",
+        "AlimamaFangYuanTiVF-Bold-Square",
+        "AlimamaFangYuanTiVF-Light",
+        "AlimamaFangYuanTiVF-Light-Round",
+        "AlimamaFangYuanTiVF-Light-Square",
+        "AlimamaFangYuanTiVF-Medium",
+        "AlimamaFangYuanTiVF-Medium-Round",
+        "AlimamaFangYuanTiVF-Medium-Square",
+        "AlimamaFangYuanTiVF-Regular",
+        "AlimamaFangYuanTiVF-Regular-Round",
+        "AlimamaFangYuanTiVF-Regular-Square",
+        "AlimamaFangYuanTiVF-SemiBold",
+        "AlimamaFangYuanTiVF-SemiBold-Round",
+        "AlimamaFangYuanTiVF-SemiBold-Square",
+        "AlimamaFangYuanTiVF-Thin",
+        "AlimamaFangYuanTiVF-Thin-Round"
+      ],
+      "sha256" : "c73d546e2a75f4184944f372cdd41677999fe7dd53fc66c690dc5f01f99002cf",
+      "size" : 7411920,
+      "uploadedAt" : "2026-10-14T06:41:13Z"
+    }
+  ],
+  "schemaVersion" : 1
 }
