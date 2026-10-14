@@ -1,0 +1,54 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="字体检索 Font Finder 1.4：离线查找 Mac 本机字体，支持中文、拼音、首字母与英文搜索，预览并复制字体名称。下载 macOS 通用版与源码。">
+  <meta name="theme-color" content="#315c4d">
+  <title>字体检索 · 好字体，随手就能找到。</title>
+  <link rel="icon" href="assets/app-icon.png" type="image/png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <a class="skip-link" href="#main">跳到主要内容</a>
+  <header class="site-header">
+    <div class="container navigation">
+      <a class="brand" href="#" aria-label="字体检索首页"><img src="assets/app-icon.png" alt="" width="38" height="38"><span>字体检索<small>FONT FINDER</small></span></a>
+      <nav aria-label="主导航"><a href="#features">功能</a><a href="#release">版本说明</a><a href="#install">安装指南</a></nav>
+      <a class="nav-download" href="#download">下载 v1.4 <span aria-hidden="true">↗</span></a>
+    </div>
+  </header>
+  <main id="main">
+    <section class="hero container" aria-labelledby="hero-title">
+      <div class="hero-copy">
+        <div class="eyebrow"><span class="status-dot"></span> 为你的 Mac，找回每一个好字体</div>
+        <h1 id="hero-title">好字体，<br>随手就能<span class="accent-word">找到。</span></h1>
+        <p class="hero-description">记得字的样子，却想不起它的名字？<br>中文、拼音或英文，换个方式也能找到。<br>让找字体这件小事，变得简单一点。</p>
+        <div class="hero-actions">
+          <a class="button primary" href="downloads/FontFinder-macOS-Universal-v1.4.zip" download><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4"/></svg>下载 macOS 版</a>
+          <a class="text-link" href="downloads/FontFinder-Source-v1.4.zip" download>下载源码 <span aria-hidden="true">↗</span></a>
+        </div>
+        <p class="compatibility">v1.4 · macOS 13+ · Apple 芯片 / Intel 通用</p>
+      </div>
+      <div class="type-art" aria-hidden="true"><span class="art-caption">EVERY FONT HAS A NAME.</span><span class="art-character">字</span><span class="art-latin">Aa</span><span class="art-search"><svg viewBox="0 0 24 24"><circle cx="10" cy="10" r="6"/><path d="m15 15 5 5"/></svg> 苹方 / pingfang / pf</span><span class="art-bottom">中文 · 拼音 · English</span></div>
+    </section>
+    <section class="preview-section container" aria-labelledby="preview-title">
+      <div class="section-caption"><h2 id="preview-title">你的字体，一目了然。</h2><span>原生 Mac 应用 · 离线可用</span></div>
+      <figure class="app-window"><div class="window-bar" aria-hidden="true"><i></i><i></i><i></i><span>字体检索 — Font Finder</span></div><img src="assets/app-preview.png" alt="字体检索真实软件界面：左侧字体分类，中间字体家族列表，右侧字重预览和中英文名称复制" width="2360" height="1620" fetchpriority="high"><figcaption>软件实际界面 · 字体列表取决于你的 Mac 已安装的字体</figcaption></figure>
+    </section>
+    <section id="features" class="features-section container" aria-labelledby="features-title">
+      <div class="section-heading"><div class="eyebrow">少一点寻找，多一点创作</div><h2 id="features-title">从想起名字，<br>到找到灵感。</h2><p>专注本机字体查找与名称复制，<br>把熟悉的工作流程，变得更顺手。</p></div>
+      <div class="feature-grid">
+        <article class="feature"><span class="feature-number">01 / SEARCH</span><h3>一个名字，多种找法。</h3><p>中文、拼音、拼音首字母、英文，甚至 PostScript 名称。输入你记得的部分，就能搜索本机字体。</p><div class="search-examples"><span>苹方</span><span>pingfang</span><span>pf</span><span>PingFang</span></div></article>
+        <article class="feature"><span class="feature-number">02 / PREVIEW</span><h3>字重合并，灵感展开。</h3><p>同一家族的字重合并展示。切换 Regular、Light、Bold 等样式，输入自己的文字，调整字号预览。</p><div class="weight-examples" aria-hidden="true"><span>字</span><span>字</span><span>字</span><span>字</span></div></article>
+        <article class="feature"><span class="feature-number">03 / COPY</span><h3>名字一复制，创作就继续。</h3><p>一键复制中文或英文家族名称。收藏喜欢的字体，查看最近复制，也可以添加自己的中英文别名。</p><div class="shortcut-examples"><kbd>⌘ 1</kbd><span>复制中文</span><kbd>⌘ 2</kbd><span>复制英文</span></div></article>
+      </div>
+      <div class="local-note"><span aria-hidden="true">◎</span><p><strong>字体来自你的 Mac，记录也留在你的 Mac。</strong>离线运行；收藏、别名与最近复制保存在本机。安装包不包含字体文件。</p></div>
+    </section>
+    <section id="release" class="release-section" aria-labelledby="release-title"><div class="container release-layout"><div><div class="eyebrow">WHAT’S NEW</div><h2 id="release-title">更有条理的<br>字体资料库。</h2><span class="version-tag">VERSION 1.4</span></div><div class="release-list"><article><span>01</span><div><h3>字体来源，更清晰</h3><p>读取本机已启用、持久注册且有实际文件的字体，过滤隐藏、未下载和应用临时加载的字体。</p></div></article><article><span>02</span><div><h3>一个家族，一行展示</h3><p>同一家族的不同字重与样式合并，在右侧切换预览。简繁体和不同宽度家族仍独立显示。</p></div></article><article><span>03</span><div><h3>旧记录，接着用</h3><p>旧版按字重记录的收藏、最近复制与别名，迁移到字体家族条目。</p></div></article></div></div></section>
+    <section id="download" class="download-section container" aria-labelledby="download-title"><div class="section-heading compact"><div class="eyebrow">下一次找字体，从这里开始</div><h2 id="download-title">把好字体，放在手边。</h2><p>选择适合你的下载文件。</p></div><div class="download-grid"><article class="download-card recommended"><div class="card-top"><span class="platform-icon" aria-hidden="true">⌘</span><span class="pill">日常使用</span></div><h3>macOS 通用版</h3><p>解压后即可安装，无需额外运行环境。</p><dl><div><dt>软件版本</dt><dd>1.4</dd></div><div><dt>系统要求</dt><dd>macOS 13 或更新版本</dd></div><div><dt>芯片支持</dt><dd>Apple 芯片与 Intel</dd></div><div><dt>文件大小</dt><dd>722 KB · ZIP</dd></div></dl><a class="button primary full" href="downloads/FontFinder-macOS-Universal-v1.4.zip" download><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4"/></svg>下载 macOS 版</a><a class="card-foot-link" href="#install">查看安装步骤 <span aria-hidden="true">→</span></a></article><article class="download-card"><div class="card-top"><span class="platform-icon code-icon" aria-hidden="true">&lt;/&gt;</span><span class="pill muted">开发与构建</span></div><h3>项目源码</h3><p>Swift 原生实现，使用 macOS 系统框架。</p><dl><div><dt>源码版本</dt><dd>1.4</dd></div><div><dt>构建环境</dt><dd>macOS + Xcode 命令行工具</dd></div><div><dt>主要框架</dt><dd>SwiftUI / AppKit / CoreText</dd></div><div><dt>文件大小</dt><dd>132 KB · ZIP</dd></div></dl><a class="button secondary full" href="downloads/FontFinder-Source-v1.4.zip" download><svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3v12m-5-5 5 5 5-5M5 16v4h14v-4"/></svg>下载源码</a><a class="card-foot-link" href="https://github.com/sudazz777/ZiTiJianSuo" target="_blank" rel="noopener noreferrer">在 GitHub 查看项目 <span aria-hidden="true">↗</span></a></article></div><div class="download-notes"><p>当前安装包使用本地 ad-hoc 签名，尚未完成 Developer ID 签名及 Apple 公证。首次打开可能需要在系统设置中确认。</p><a href="downloads/SHA256SUMS.txt" download>下载 SHA-256 校验文件 <span aria-hidden="true">↓</span></a></div></section>
+    <section id="install" class="installation container" aria-labelledby="install-title"><div class="section-heading compact"><div class="eyebrow">简单三步</div><h2 id="install-title">下载，然后开始寻找。</h2></div><ol class="install-steps"><li><span class="step-number">1</span><h3>下载并解压</h3><p>下载 macOS 通用版 ZIP，双击压缩包，找到「字体检索.app」。</p></li><li><span class="step-number">2</span><h3>拖入应用程序</h3><p>将「字体检索.app」拖入 Applications（应用程序）文件夹。</p></li><li><span class="step-number">3</span><h3>打开，输入名字</h3><p>启动应用，输入中文、拼音或英文，预览字体并复制名称。</p></li></ol><div class="faq"><details><summary>首次打开提示无法验证开发者，怎么办？</summary><div>先尝试打开一次，再前往「系统设置 → 隐私与安全性」，找到该应用的提示，选择「仍要打开」。请仅对你确认来源的应用进行确认。<a href="https://support.apple.com/zh-cn/102445" target="_blank" rel="noopener noreferrer">查看 Apple 官方说明 ↗</a></div></details><details><summary>可以在 Windows 上使用吗？</summary><div>当前版本是原生 macOS 应用，部署目标为 macOS 13 或更新版本，包含 Apple 芯片与 Intel 两种架构。没有提供 Windows 版本。</div></details><details><summary>会自带字体，或者自动连接设计软件吗？</summary><div>应用只读取当前 Mac 已安装并启用的字体，不附带字体文件。复制的是名称文字，不保证每个设计软件都能识别，也不会直接将字体写入其他软件。</div></details><details><summary>怎样从源码构建？</summary><div>在 Mac 安装 Xcode 或 Apple Command Line Tools，解压源码并进入项目目录，运行 <code>bash build.sh</code>。脚本构建 arm64 和 x86_64 分支，合并为通用应用并进行本地签名。</div></details></div></section>
+  </main>
+  <footer class="site-footer container"><a class="brand" href="#"><img src="assets/app-icon.png" alt="" width="32" height="32"><span>字体检索<small>FONT FINDER</small></span></a><p>好字体，随手就能找到。</p><a href="https://github.com/sudazz777/ZiTiJianSuo" target="_blank" rel="noopener noreferrer">GitHub <span aria-hidden="true">↗</span></a></footer>
+</body>
+</html>

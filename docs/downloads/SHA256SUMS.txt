@@ -1,0 +1,2 @@
+0260eab1316d1cb3f2bf110672472d9c99420ed7d6032c5be135b27b326e7867  FontFinder-macOS-Universal-v1.4.zip
+7a5c25e94a379ce00c091fab90577edaf721e30dc2fa685e26e3cb7f9e623346  FontFinder-Source-v1.4.zip

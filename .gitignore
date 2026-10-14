@@ -1,0 +1,9 @@
+.DS_Store
+._*
+__MACOSX/
+.build/
+*.app/
+.env
+.env.*
+!.env.example
+

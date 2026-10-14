@@ -1,0 +1,158 @@
+字体检索 1.4 独立应用
+Apple 芯片及 Rosetta Intel 分支各 73 项自检通过。
+
+--- arm64 ---
+PASS: empty font metadata is safe
+PASS: truncated name table is safe
+PASS: UTF-16 Chinese name metadata
+PASS: Chinese locale metadata recognized
+PASS: Chinese transliteration
+PASS: multilingual search: 苹方
+PASS: multilingual search: ping fang
+PASS: multilingual search: píngfāng
+PASS: multilingual search: PINGFANG
+PASS: multilingual search: pf
+PASS: multilingual search: PingFangSC-Regular
+PASS: multilingual search: pingfang jianti
+PASS: unmatched query excluded
+PASS: reads installed fonts
+PASS: font identities unique
+PASS: installed PingFang family found
+PASS: official Chinese name decoded from installed font
+PASS: real Chinese and pinyin search
+PASS: real font has Chinese glyphs
+PASS: real family names omit weight suffixes
+PASS: real weights merge and regular is default
+PASS: real Arial weights and italics merge
+PASS: all family faces have local files outside app bundles
+CATALOG: 425 fonts, 107 Chinese names
+PINGFANG: 苹方-简 / PingFang SC
+PASS: favorites filter
+PASS: no stale selection when search is empty
+PASS: custom alias search: 我的标题
+PASS: custom alias search: wodebiaoti
+PASS: custom alias search: wdbt
+PASS: custom alias search: My Headline
+PASS: copy succeeds: 中文名
+PASS: clipboard content: 中文名
+PASS: copy succeeds: 英文名
+PASS: clipboard content: 英文名
+PASS: recent copies deduplicate
+PASS: recent copies filter
+PASS: preferences persist across launches
+PASS: restore official name
+PASS: A-Z is case insensitive with natural numbers and stable ties
+PASS: Z-A reverse ordering
+PASS: sorting preserves the selected font
+PASS: Chinese pinyin A-Z with English fallback
+PASS: Chinese pinyin Z-A
+PASS: default ordering preserves catalog order
+PASS: recent-first sorts uncopied fonts alphabetically
+PASS: copy in recent-first mode succeeds
+PASS: new copy immediately moves to top in recent-first mode
+PASS: search results retain chosen sorting
+PASS: favorites retain chosen sorting
+PASS: editing an alias updates sort position
+PASS: sort choice persists across launches
+PASS: installed enabled computer font accepted
+PASS: disabled font excluded
+PASS: process and session fonts excluded
+PASS: dynamic font excluded
+PASS: missing or undownloaded file excluded
+PASS: app bundled font excluded
+PASS: hidden system font excluded
+PASS: installed system font download retained
+PASS: weights merge but script and width families stay distinct
+PASS: duplicate face records are removed
+PASS: merged family name has no style suffix
+PASS: regular selected independent of enumeration order
+PASS: family search covers individual weights and pinyin
+PASS: legacy weight favorites migrate to one family
+PASS: legacy recents migrate and deduplicate in order
+PASS: legacy aliases migrate to family
+PASS: migration preserves selection and preview style
+PASS: preview weight changes without changing copied family name
+PASS: invalid style selection ignored
+PASS: restored names stay restored after catalog refresh
+PASS: searching a weight yields one merged family row
+PASS: migrated favorites and recents persist
+PASS: clipboard contains family name without weight
+SUCCESS: 73 checks passed
+
+--- intel ---
+PASS: empty font metadata is safe
+PASS: truncated name table is safe
+PASS: UTF-16 Chinese name metadata
+PASS: Chinese locale metadata recognized
+PASS: Chinese transliteration
+PASS: multilingual search: 苹方
+PASS: multilingual search: ping fang
+PASS: multilingual search: píngfāng
+PASS: multilingual search: PINGFANG
+PASS: multilingual search: pf
+PASS: multilingual search: PingFangSC-Regular
+PASS: multilingual search: pingfang jianti
+PASS: unmatched query excluded
+PASS: reads installed fonts
+PASS: font identities unique
+PASS: installed PingFang family found
+PASS: official Chinese name decoded from installed font
+PASS: real Chinese and pinyin search
+PASS: real font has Chinese glyphs
+PASS: real family names omit weight suffixes
+PASS: real weights merge and regular is default
+PASS: real Arial weights and italics merge
+PASS: all family faces have local files outside app bundles
+CATALOG: 425 fonts, 107 Chinese names
+PINGFANG: 苹方-简 / PingFang SC
+PASS: favorites filter
+PASS: no stale selection when search is empty
+PASS: custom alias search: 我的标题
+PASS: custom alias search: wodebiaoti
+PASS: custom alias search: wdbt
+PASS: custom alias search: My Headline
+PASS: copy succeeds: 中文名
+PASS: clipboard content: 中文名
+PASS: copy succeeds: 英文名
+PASS: clipboard content: 英文名
+PASS: recent copies deduplicate
+PASS: recent copies filter
+PASS: preferences persist across launches
+PASS: restore official name
+PASS: A-Z is case insensitive with natural numbers and stable ties
+PASS: Z-A reverse ordering
+PASS: sorting preserves the selected font
+PASS: Chinese pinyin A-Z with English fallback
+PASS: Chinese pinyin Z-A
+PASS: default ordering preserves catalog order
+PASS: recent-first sorts uncopied fonts alphabetically
+PASS: copy in recent-first mode succeeds
+PASS: new copy immediately moves to top in recent-first mode
+PASS: search results retain chosen sorting
+PASS: favorites retain chosen sorting
+PASS: editing an alias updates sort position
+PASS: sort choice persists across launches
+PASS: installed enabled computer font accepted
+PASS: disabled font excluded
+PASS: process and session fonts excluded
+PASS: dynamic font excluded
+PASS: missing or undownloaded file excluded
+PASS: app bundled font excluded
+PASS: hidden system font excluded
+PASS: installed system font download retained
+PASS: weights merge but script and width families stay distinct
+PASS: duplicate face records are removed
+PASS: merged family name has no style suffix
+PASS: regular selected independent of enumeration order
+PASS: family search covers individual weights and pinyin
+PASS: legacy weight favorites migrate to one family
+PASS: legacy recents migrate and deduplicate in order
+PASS: legacy aliases migrate to family
+PASS: migration preserves selection and preview style
+PASS: preview weight changes without changing copied family name
+PASS: invalid style selection ignored
+PASS: restored names stay restored after catalog refresh
+PASS: searching a weight yields one merged family row
+PASS: migrated favorites and recents persist
+PASS: clipboard contains family name without weight
+SUCCESS: 73 checks passed
