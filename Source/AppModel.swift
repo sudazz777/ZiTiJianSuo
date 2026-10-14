@@ -59,7 +59,7 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
         recent = defaults.stringArray(forKey: "recent") ?? []
         custom = defaults.data(forKey: "customNames").flatMap { try? JSONDecoder().decode([String: CustomNames].self, from: $0) } ?? [:]
         fontObserver = DistributedNotificationCenter.default().addObserver(forName: NSNotification.Name(kCTFontManagerRegisteredFontsChangedNotification as String), object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor in self?.reload() }
+            Task { @MainActor [weak self] in self?.reload() }
         }
     }
 
