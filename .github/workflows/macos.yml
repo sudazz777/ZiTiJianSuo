@@ -23,17 +23,34 @@ jobs:
         run: '"字体检索.app/Contents/MacOS/FontName" --self-test'
       - name: Test cloud library and upload permissions
         run: '"字体检索.app/Contents/MacOS/FontName" --cloud-self-test'
+      - name: Prepare ZIP and font fixtures
+        run: |
+          python3 - <<'PY'
+          import pathlib, zipfile, stat
+          root=pathlib.Path('test-fixtures');root.mkdir()
+          source=next(pathlib.Path('fonts/files').glob('*.ttf'))
+          (root/'sample.ttf').write_bytes(source.read_bytes())
+          (root/'invalid.ttf').write_bytes(b'not a font')
+          with zipfile.ZipFile(root/'inner.zip','w',zipfile.ZIP_DEFLATED) as z:z.write(root/'sample.ttf','sample.ttf')
+          with zipfile.ZipFile(root/'nested.zip','w',zipfile.ZIP_DEFLATED) as z:z.write(root/'inner.zip','folder/inner.zip')
+          with zipfile.ZipFile(root/'traversal.zip','w') as z:z.writestr('../outside.ttf',b'bad')
+          with zipfile.ZipFile(root/'symlink.zip','w') as z:
+            entry=zipfile.ZipInfo('alias.ttf');entry.create_system=3;entry.external_attr=(stat.S_IFLNK|0o777)<<16;z.writestr(entry,'/outside.ttf')
+          PY
+      - name: Test real font installation, ZIP cleanup and WebKit scanner
+        timeout-minutes: 3
+        run: '"字体检索.app/Contents/MacOS/FontName" --netdisk-self-test "$PWD/test-fixtures"'
       - name: Package app
         run: |
           mkdir -p release
-          ditto -c -k --keepParent "字体检索.app" release/FontFinder-macOS-Universal-v1.5.zip
-          shasum -a 256 release/FontFinder-macOS-Universal-v1.5.zip > release/SHA256SUMS.txt
+          ditto -c -k --keepParent "字体检索.app" release/FontFinder-macOS-Universal-v1.6.zip
+          shasum -a 256 release/FontFinder-macOS-Universal-v1.6.zip > release/SHA256SUMS.txt
       - name: Capture app preview
         timeout-minutes: 1
         continue-on-error: true
         run: '"字体检索.app/Contents/MacOS/FontName" --capture "$PWD/release/app-preview.png"'
       - uses: actions/upload-artifact@v4
         with:
-          name: FontFinder-macOS-Universal-v1.5
+          name: FontFinder-macOS-Universal-v1.6
           path: release/
           retention-days: 30

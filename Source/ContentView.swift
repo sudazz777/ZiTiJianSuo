@@ -28,13 +28,13 @@ struct QuietButton: ButtonStyle {
 
 struct ContentView: View {
     @ObservedObject var model: AppModel
-    @StateObject private var cloud = CloudFontModel()
+    @StateObject private var importer = NetdiskImportModel()
     @FocusState private var searchFocused: Bool
     var body: some View {
         HStack(spacing: 0) {
             sidebar.frame(width: 200)
             if model.showCloudLibrary {
-                CloudLibraryView(model: cloud).frame(maxWidth: .infinity, maxHeight: .infinity)
+                NetdiskImportView(model: importer).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else { VStack(spacing: 0) {
                 topbar
                 Rectangle().fill(Palette.line).frame(height: 1)
@@ -94,9 +94,9 @@ struct ContentView: View {
             Button { model.showCloudLibrary = true } label: {
                 HStack(spacing: 11) {
                     Image(systemName: "icloud").font(.system(size: 15)).frame(width: 18)
-                    Text("云端字体").font(.system(size: 12, weight: model.showCloudLibrary ? .semibold : .regular))
+                    Text("网盘字体安装").font(.system(size: 12, weight: model.showCloudLibrary ? .semibold : .regular))
                     Spacer(minLength: 0)
-                    Text("\(cloud.fonts.count)").font(.system(size: 10, design: .monospaced)).opacity(0.7)
+                    Text("\(importer.installedCount)").font(.system(size: 10, design: .monospaced)).opacity(0.7)
                 }.padding(.horizontal, 12).frame(height: 43)
                     .foregroundColor(model.showCloudLibrary ? Palette.green : Palette.muted)
                     .background(model.showCloudLibrary ? Palette.mint : Color.clear)
@@ -194,7 +194,7 @@ struct ContentView: View {
             HStack {
                 Text("字体册已启用字体 · 复制家族名称").font(.system(size: 9)).foregroundColor(Palette.muted)
                 Spacer()
-                Text("v1.5").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
+                Text("v1.6").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
             }.padding(.horizontal, 25).frame(height: 35)
         }
     }
