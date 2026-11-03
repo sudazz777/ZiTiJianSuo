@@ -26,14 +26,14 @@ jobs:
       - name: Package app
         run: |
           mkdir -p release
-          ditto -c -k --keepParent "字体检索.app" release/FontFinder-macOS-Universal-v1.7.zip
-          shasum -a 256 release/FontFinder-macOS-Universal-v1.7.zip > release/SHA256SUMS.txt
+          ditto -c -k --keepParent "字体检索.app" release/FontFinder-macOS-Universal-v1.8.zip
+          shasum -a 256 release/FontFinder-macOS-Universal-v1.8.zip > release/SHA256SUMS.txt
       - name: Capture app preview
         timeout-minutes: 1
         continue-on-error: true
         run: '"字体检索.app/Contents/MacOS/FontName" --capture "$PWD/release/app-preview.png"'
       - uses: actions/upload-artifact@v4
         with:
-          name: FontFinder-macOS-Universal-v1.7
+          name: FontFinder-macOS-Universal-v1.8
           path: release/
           retention-days: 30

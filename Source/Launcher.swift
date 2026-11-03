@@ -117,7 +117,7 @@ import SwiftUI
     }
     @objc func about() {
         NSApp.orderFrontStandardAboutPanel(options: [
-            .applicationName: "字体检索 Font Finder", .applicationVersion: "1.7",
+            .applicationName: "字体检索 Font Finder", .applicationVersion: "1.8",
             .credits: NSAttributedString(string: "好字体，随手就能找到。\n本机字体检索 · 离线使用\n中文、拼音、英文搜索\nApple 芯片与 Intel 通用")
         ])
     }

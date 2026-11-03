@@ -116,6 +116,21 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
         faceSelections[font.id] = id
     }
 
+    func fontFileURL(_ font: FontRecord) -> URL? {
+        guard let url = previewFace(font).sourceURL, url.isFileURL else { return nil }
+        var isDirectory = ObjCBool(false)
+        guard FileManager.default.fileExists(atPath: url.path, isDirectory: &isDirectory), !isDirectory.boolValue else { return nil }
+        return url
+    }
+
+    func revealFontFile(_ font: FontRecord) {
+        guard let url = fontFileURL(font) else {
+            notify("字体文件已移动或无法访问，请刷新字体列表后重试")
+            return
+        }
+        NSWorkspace.shared.activateFileViewerSelecting([url])
+    }
+
     func filter() {
         let byID = Dictionary(uniqueKeysWithValues: fonts.map { ($0.id, $0) })
         var source = section == .recent ? recent.compactMap { byID[$0] } : fonts

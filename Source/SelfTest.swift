@@ -151,6 +151,34 @@ enum SelfTest {
         let familyRestored = AppModel(defaults: defaults)
         check(familyRestored.favorites == [group.id] && familyRestored.recent.first == group.id, "migrated favorites and recents persist")
         check(model.copy(model.englishName(group), font: group, label: "英文名", pasteboard: pasteboard) && pasteboard.string(forType: .string) == "Probe SC", "clipboard contains family name without weight")
+
+        do {
+            let directory = FileManager.default.temporaryDirectory.appendingPathComponent("FontLocation-\(UUID().uuidString)")
+            try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: true)
+            defer { try? FileManager.default.removeItem(at: directory) }
+            let regularURL = directory.appendingPathComponent("样例 Regular.ttf")
+            let boldURL = directory.appendingPathComponent("样例 Bold.ttf")
+            try Data().write(to: regularURL); try Data().write(to: boldURL)
+            let locationRegular = FontFace(id: "Location-Regular", family: "Location", englishFamily: "Location", chineseFamily: nil, style: "Regular", sourceURL: regularURL)
+            let locationBold = FontFace(id: "Location-Bold", family: "Location", englishFamily: "Location", chineseFamily: nil, style: "Bold", weight: 0.4, sourceURL: boldURL)
+            let locationFamily = FontRecord.merged([locationBold, locationRegular])[0]
+            check(model.fontFileURL(locationFamily) == regularURL, "font location uses default regular face and preserves Unicode path")
+            model.selectFace(locationBold.id, for: locationFamily)
+            check(model.fontFileURL(locationFamily) == boldURL, "font location follows selected weight")
+            check(model.selection != locationFamily.id && model.fontFileURL(locationFamily) == boldURL, "row location resolves its own font independently of selected row")
+            check(model.fontFileURL(fixture) == nil, "missing font metadata has no location")
+            func locationRecord(_ url: URL) -> FontRecord {
+                FontRecord(id: "Location-Test", family: "Location Test", english: "Location Test", chinese: nil, style: "Regular", aliases: [], allNames: [], faces: [FontFace(id: "Location-Test", family: "Location Test", englishFamily: "Location Test", chineseFamily: nil, style: "Regular", sourceURL: url)])
+            }
+            check(model.fontFileURL(locationRecord(directory)) == nil, "font location rejects directories")
+            check(model.fontFileURL(locationRecord(URL(string: "https://example.com/font.ttf")!)) == nil, "font location never opens remote addresses")
+            try FileManager.default.removeItem(at: boldURL)
+            check(model.fontFileURL(locationFamily) == nil, "moved or removed font does not resolve to a different weight")
+            let recentBeforeReveal = model.recent
+            model.revealFontFile(locationFamily)
+            check(model.toast?.contains("刷新字体列表") == true && model.recent == recentBeforeReveal, "unavailable location shows recovery hint without changing copy history")
+            check(ping.map { model.fontFileURL($0) == model.previewFace($0).sourceURL } == true, "real installed font resolves to its CoreText file")
+        } catch { check(false, "font location fixture setup: \(error)") }
         print("SUCCESS: \(checks) checks passed")
     }
 }
