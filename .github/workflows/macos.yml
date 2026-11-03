@@ -19,15 +19,20 @@ jobs:
       - uses: actions/checkout@v4
       - name: Build Universal app
         run: bash build.sh
-      - name: Test local font features
-        run: '"字体检索.app/Contents/MacOS/FontName" --self-test'
       - name: Test cloud library and upload permissions
         run: '"字体检索.app/Contents/MacOS/FontName" --cloud-self-test'
       - name: Package app
         run: |
           mkdir -p release
+          bash Tools/package-installer.sh
           ditto -c -k --keepParent "字体检索.app" release/FontFinder-macOS-Universal-v1.8.zip
-          shasum -a 256 release/FontFinder-macOS-Universal-v1.8.zip > release/SHA256SUMS.txt
+          shasum -a 256 release/FontFinder-macOS-Universal-v1.8.pkg release/FontFinder-macOS-Universal-v1.8.zip > release/SHA256SUMS.txt
+      - name: Install PKG in Applications and verify payload
+        run: |
+          sudo installer -pkg release/FontFinder-macOS-Universal-v1.8.pkg -target /
+          python3 Tools/verify-installed-app.py
+      - name: Test installed app
+        run: '"/Applications/字体检索.app/Contents/MacOS/FontName" --self-test'
       - name: Capture app preview
         timeout-minutes: 1
         continue-on-error: true
