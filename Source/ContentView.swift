@@ -82,10 +82,11 @@ struct ContentView: View {
                         Text(section.rawValue).font(.system(size: 12, weight: model.section == section ? .semibold : .regular))
                         Spacer(minLength: 0)
                         Text(count(section)).font(.system(size: 10, design: .monospaced)).opacity(0.7)
-                    }.padding(.horizontal, 12).frame(height: 43)
+                    }.padding(.horizontal, 12).frame(maxWidth: .infinity, minHeight: 43)
                     .foregroundColor(model.section == section ? Palette.green : Palette.muted)
                     .background(model.section == section ? Palette.mint : Color.clear)
                     .clipShape(RoundedRectangle(cornerRadius: 9))
+                    .contentShape(Rectangle())
                 }.buttonStyle(.plain).padding(.bottom, 5)
             }
             Spacer()
@@ -184,7 +185,7 @@ struct ContentView: View {
             HStack {
                 Text("字体册已启用字体 · 复制家族名称").font(.system(size: 9)).foregroundColor(Palette.muted)
                 Spacer()
-                Text("v1.11").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
+                Text("v1.12").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
             }.padding(.horizontal, 25).frame(height: 35)
         }
     }
