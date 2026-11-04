@@ -30,13 +30,13 @@ import SwiftUI
         let recovery = CommandLine.arguments.firstIndex(of: "--update-install-failed").flatMap { index in
             index + 1 < CommandLine.arguments.count ? CommandLine.arguments[index + 1] : nil
         }
-        if !CommandLine.arguments.contains("--capture"), recovery == nil {
+        if !CommandLine.arguments.contains("--capture") {
             updater.canInstall = { [weak self] in self?.model.fontOperationInProgress == false }
             updater.onCheckingChanged = { [weak self] checking in
                 self?.updateMenuItem?.title = checking ? (self?.updater.isUpdating == true ? "正在更新…" : "正在检查更新…") : "检查更新…"
                 self?.updateMenuItem?.isEnabled = !checking
             }
-            updater.start()
+            if recovery == nil { updater.start() }
         }
         if let recovery {
             let alert = NSAlert(); alert.messageText = "自动更新未完成"
@@ -159,6 +159,24 @@ import SwiftUI
 
 @main enum Launcher {
     @MainActor static func main() {
+        if let index = CommandLine.arguments.firstIndex(of: "--update-relaunch-probe"), index + 1 < CommandLine.arguments.count {
+            let report = URL(fileURLWithPath: CommandLine.arguments[index + 1]).standardizedFileURL
+            let root = report.deletingLastPathComponent().resolvingSymlinksInPath()
+            let temporary = FileManager.default.temporaryDirectory.resolvingSymlinksInPath().path
+            guard root.path.hasPrefix(temporary + "/"), root.lastPathComponent.hasPrefix("FontFinder-Install-Test-"),
+                  report.lastPathComponent.hasPrefix("relaunch-"), report.pathExtension == "json",
+                  !FileManager.default.fileExists(atPath: report.path) else { exit(2) }
+            let app = NSApplication.shared
+            app.setActivationPolicy(.prohibited)
+            DispatchQueue.main.async {
+                let result = ["bundlePath": Bundle.main.bundleURL.path, "version": Bundle.main.object(forInfoDictionaryKey: "CFBundleShortVersionString") as? String ?? ""]
+                do { try JSONSerialization.data(withJSONObject: result).write(to: report, options: .atomic) }
+                catch { exit(2) }
+            }
+            DispatchQueue.main.asyncAfter(deadline: .now() + 3) { app.terminate(nil) }
+            app.run()
+            return
+        }
         if let index = CommandLine.arguments.firstIndex(of: "--install-update-helper"), index + 1 < CommandLine.arguments.count {
             exit(AppUpdateInstallation.runHelper(jobURL: URL(fileURLWithPath: CommandLine.arguments[index + 1])))
         }

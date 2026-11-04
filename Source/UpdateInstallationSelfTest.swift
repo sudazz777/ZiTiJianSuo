@@ -1,4 +1,5 @@
 import Foundation
+import AppKit
 
 enum UpdateInstallationSelfTest {
     @MainActor static func run() {
@@ -85,11 +86,23 @@ enum UpdateInstallationSelfTest {
 
             let (successful, successJob) = try prepare()
             var relaunched: URL?
+            var launchedApplication: NSRunningApplication?
+            let acknowledgement = root.appendingPathComponent("relaunch-\(UUID().uuidString).json")
             try AppUpdateInstallation.install(successJob, directory: successful.directory, policy: policy) { url in
                 relaunched = url
                 try AppUpdateInstallation.validateBundle(url, release: release)
+                launchedApplication = try AppUpdateInstallation.openApplication(url, arguments: ["--update-relaunch-probe", acknowledgement.path])
             }
             check(relaunched == destination, "installation requests a relaunch of the exact destination path")
+            let reported = try JSONSerialization.jsonObject(with: Data(contentsOf: acknowledgement)) as! [String: String]
+            check(reported["bundlePath"] == destination.path && reported["version"] == version,
+                  "macOS Launch Services actually opens the replacement app at the expected version and path")
+            let exitDeadline = Date().addingTimeInterval(6)
+            while launchedApplication?.isTerminated == false && Date() < exitDeadline {
+                RunLoop.current.run(until: Date().addingTimeInterval(0.05))
+            }
+            if launchedApplication?.isTerminated == false { launchedApplication?.terminate() }
+            check(launchedApplication?.isTerminated == true, "the test-only relaunched application exits before its private fixture is cleaned")
             check(try UpdateInstallIdentity.read(destination) == successJob.stagedIdentity, "the staged app atomically becomes the installed app")
             check(try UpdateInstallIdentity.read(successful.directory.appendingPathComponent("Next.app")) == successJob.destinationIdentity,
                   "the old app is retained as the rollback copy until relaunch succeeds")

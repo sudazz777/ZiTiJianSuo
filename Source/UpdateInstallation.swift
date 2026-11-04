@@ -377,7 +377,7 @@ enum AppUpdateInstallation {
 
     private static func processExists(_ pid: Int32) -> Bool { kill(pid, 0) == 0 || errno == EPERM }
 
-    private static func openApplication(_ app: URL, arguments: [String] = []) throws {
+    @discardableResult static func openApplication(_ app: URL, arguments: [String] = []) throws -> NSRunningApplication {
         let configuration = NSWorkspace.OpenConfiguration()
         configuration.createsNewApplicationInstance = true
         configuration.arguments = arguments
@@ -402,6 +402,7 @@ enum AppUpdateInstallation {
         // Keep the previous bundle until Launch Services has launched the replacement successfully.
         RunLoop.current.run(until: Date().addingTimeInterval(1))
         guard !application.isTerminated else { throw UpdateInstallationError(message: "新版启动后立即退出。") }
+        return application
     }
 
     @discardableResult static func tool(_ path: String, _ arguments: [String]) throws -> String {
