@@ -6,11 +6,11 @@
 
 ![字体检索软件界面](documentation/assets/app-preview.png)
 
-## 下载 v1.10
+## 下载 v1.11
 
 | 下载文件 | 用途 |
 | --- | --- |
-| [下载 macOS 安装包（DMG）](https://github.com/sudazz777/ZiTiJianSuo/releases/download/v1.10/FontFinder-macOS-Universal-v1.10.dmg) | Apple 芯片与 Intel Mac，部署目标 macOS 13+ |
+| [下载 macOS 安装包（DMG）](https://github.com/sudazz777/ZiTiJianSuo/releases/download/v1.11/FontFinder-macOS-Universal-v1.11.dmg) | Apple 芯片与 Intel Mac，部署目标 macOS 13+ |
 
 ## 安装
 
@@ -33,12 +33,10 @@
 
 安装包不含字体文件；每台 Mac 显示各自安装的字体。复制的是名称文字，当前版本没有直接连接设计软件写入字体的功能。
 
-## v1.10 版本说明
+## v1.11 版本说明
 
-安装包改为标准 DMG，提供应用和「应用程序」快捷方式，支持拖拽安装。新版不再提供兼容 PKG。
+DMG 默认打开为紧凑窗口，字体检索在左、应用程序在右，两个图标同高并整体居中。关闭自动排列，避免图标顺序被重新排序。
 
-保留单层排序菜单、字体文件定位和每日自动检查更新。
-
-「检查更新」将下载 DMG。v1.9 及更早版本需要手动下载并安装本次新版，之后可继续使用检查更新。
+保留拖拽安装、单层排序菜单、字体文件定位和每日检查更新。v1.10 可以直接通过「检查更新」下载新版；v1.9 及更早版本需要手动下载 DMG。
 
 更多软件操作说明见 [使用说明](documentation/user-guide.md)。
