@@ -6,7 +6,7 @@ import SwiftUI
     @Published var families: [LocalFontFamily] = []
     @Published var selected: Set<String> = []
     @Published var query = ""
-    @Published var onlyDeletable = false
+    @Published var onlyDeletable = true
     @Published var isProcessing = false
     @Published var status = "选择字体后，可批量移到电脑废纸篓。"
     @Published var results: [FontTrashResult] = []
@@ -85,44 +85,10 @@ struct FontManagementView: View {
     private let columns = [GridItem(.adaptive(minimum: 260), spacing: 14, alignment: .top)]
     private var visible: [LocalFontFamily] { manager.visibleFamilies(appModel: appModel) }
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack {
-                VStack(alignment: .leading, spacing: 5) {
-                    Text("本地字体管理").font(.system(size: 24, weight: .semibold))
-                    Text("字体册已启用字体 · 字重样式已合并 · 点击卡片多选")
-                        .font(.system(size: 11)).foregroundColor(Palette.muted)
-                }
-                Spacer()
-                sortMenu
-                Button("刷新") { appModel.reload() }.buttonStyle(QuietButton()).disabled(manager.isProcessing || appModel.loading)
-                Button("打开废纸篓") { manager.openTrash() }.buttonStyle(QuietButton())
-            }
-            HStack(spacing: 12) {
-                HStack(spacing: 8) {
-                    Image(systemName: "magnifyingglass").foregroundColor(Palette.muted)
-                    TextField("搜索字体：中文 / 拼音 / English / 文件名", text: $manager.query)
-                        .textFieldStyle(.plain).focused($searchFocused)
-                    if !manager.query.isEmpty {
-                        Button { manager.query = "" } label: { Image(systemName: "xmark.circle.fill") }.buttonStyle(.plain).help("清空搜索")
-                    }
-                }.padding(10).background(Color.white).clipShape(RoundedRectangle(cornerRadius: 9))
-                Toggle("只看可删除字体", isOn: $manager.onlyDeletable).font(.system(size: 11)).fixedSize()
-            }
-            HStack(spacing: 12) {
-                TextField("输入预览文字", text: $appModel.preview).textFieldStyle(.roundedBorder)
-                Text("\(Int(appModel.size)) pt").font(.system(size: 10, design: .monospaced)).foregroundColor(Palette.muted).fixedSize()
-                Slider(value: $appModel.size, in: 18...60).tint(Palette.green).frame(width: 120)
-            }
-            HStack {
-                Button("全选可删除项") { manager.selectVisible(visible) }.buttonStyle(QuietButton())
-                Button("取消选择") { manager.selected = [] }.buttonStyle(QuietButton())
-                Text("\(visible.count) 个字体家族 · 已选 \(manager.selected.count) 个 / \(manager.selectedFiles.count) 个文件")
-                    .font(.system(size: 11)).foregroundColor(Palette.muted).lineLimit(1).minimumScaleFactor(0.85)
-                Spacer(minLength: 4)
-                Button(role: .destructive) { manager.requestDeletion(appModel: appModel) } label: {
-                    Label("删除已选…", systemImage: "trash")
-                }.buttonStyle(.bordered).fixedSize().disabled(manager.selected.isEmpty)
-            }.disabled(manager.isProcessing)
+        VStack(alignment: .leading, spacing: 12) {
+            header
+            previewToolbar
+            selectionToolbar
             if appModel.loading && manager.families.isEmpty {
                 ProgressView("正在读取字体册中的字体…").frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
@@ -133,7 +99,15 @@ struct FontManagementView: View {
                         }
                     }.padding(1)
                     if visible.isEmpty {
-                        Text("没有符合条件的字体").foregroundColor(Palette.muted).frame(maxWidth: .infinity).padding(40)
+                        VStack(spacing: 10) {
+                            Text(manager.onlyDeletable && manager.query.isEmpty ? "没有可删除的字体" : "没有符合条件的字体")
+                                .font(.system(size: 15, weight: .medium))
+                            if manager.onlyDeletable {
+                                Text("取消“只看可删除字体”可查看包括系统字体在内的完整列表。")
+                                    .font(.system(size: 11)).foregroundColor(Palette.muted)
+                                Button("查看全部字体") { manager.onlyDeletable = false }.buttonStyle(QuietButton())
+                            }
+                        }.frame(maxWidth: .infinity).padding(40)
                     }
                 }
             }
@@ -150,9 +124,84 @@ struct FontManagementView: View {
                 if manager.isProcessing { ProgressView().controlSize(.small) }
                 Text(manager.status).font(.system(size: 11)).foregroundColor(Palette.muted).textSelection(.enabled)
             }
-        }.padding(24).background(Palette.canvas)
+        }.padding(.horizontal, 24).padding(.vertical, 20).background(Palette.canvas)
             .onReceive(NotificationCenter.default.publisher(for: .focusFontSearch)) { _ in searchFocused = true }
             .onReceive(NotificationCenter.default.publisher(for: .dismissTextFocus)) { _ in searchFocused = false }
+    }
+
+    private var header: some View {
+        HStack(alignment: .center, spacing: 12) {
+            VStack(alignment: .leading, spacing: 5) {
+                Text("本地字体管理").font(.system(size: 24, weight: .semibold))
+                Text("字体册来源 · 预览、选择与批量管理").font(.system(size: 11)).foregroundColor(Palette.muted)
+            }
+            Spacer(minLength: 12)
+            HStack(spacing: 8) {
+                sortMenu
+                Button { appModel.reload() } label: {
+                    Image(systemName: "arrow.clockwise").frame(width: 12)
+                }.buttonStyle(ManagementToolbarButton()).disabled(manager.isProcessing || appModel.loading)
+                    .help("刷新字体（⌘R）").accessibilityLabel("刷新字体")
+                Button { manager.openTrash() } label: { Label("废纸篓", systemImage: "trash") }
+                    .buttonStyle(ManagementToolbarButton()).help("打开电脑废纸篓")
+            }
+        }.padding(.bottom, 2)
+    }
+
+    private var previewToolbar: some View {
+        VStack(spacing: 10) {
+            HStack(spacing: 12) {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass").foregroundColor(Palette.muted)
+                    TextField("搜索字体名称、拼音或文件名", text: $manager.query)
+                        .textFieldStyle(.plain).focused($searchFocused)
+                    if !manager.query.isEmpty {
+                        Button { manager.query = "" } label: { Image(systemName: "xmark.circle.fill").foregroundColor(Palette.muted) }
+                            .buttonStyle(.plain).help("清空搜索")
+                    }
+                }.font(.system(size: 12)).padding(.horizontal, 12).frame(maxWidth: .infinity, minHeight: 36)
+                    .background(Palette.canvas).clipShape(RoundedRectangle(cornerRadius: 8))
+                Toggle("只看可删除字体", isOn: $manager.onlyDeletable)
+                    .toggleStyle(.checkbox).font(.system(size: 11, weight: .medium)).tint(Palette.green)
+                    .fixedSize().padding(.horizontal, 12).frame(height: 36)
+                    .background(manager.onlyDeletable ? Palette.mint : Palette.canvas)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            HStack(spacing: 14) {
+                HStack(spacing: 9) {
+                    Text("预览文字").font(.system(size: 10, weight: .medium)).foregroundColor(Palette.muted)
+                    Rectangle().fill(Palette.line).frame(width: 1, height: 14)
+                    TextField("输入预览文字", text: $appModel.preview).textFieldStyle(.plain).font(.system(size: 12))
+                }.padding(.horizontal, 12).frame(maxWidth: .infinity, minHeight: 34)
+                    .background(Palette.canvas).clipShape(RoundedRectangle(cornerRadius: 8))
+                HStack(spacing: 8) {
+                    Image(systemName: "textformat.size").foregroundColor(Palette.muted)
+                    Slider(value: $appModel.size, in: 18...60).tint(Palette.green).frame(width: 100)
+                    Text("\(Int(appModel.size)) pt").font(.system(size: 10, design: .monospaced))
+                        .foregroundColor(Palette.muted).frame(width: 38, alignment: .trailing)
+                }.padding(.horizontal, 4)
+            }
+        }.padding(12).background(Color.white).clipShape(RoundedRectangle(cornerRadius: 12))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(Palette.line.opacity(0.65), lineWidth: 1))
+    }
+
+    private var selectionToolbar: some View {
+        HStack(spacing: 12) {
+            Text("\(visible.count) 个字体家族").font(.system(size: 11)).foregroundColor(Palette.muted)
+            if !manager.selected.isEmpty {
+                Text("已选 \(manager.selected.count) 个 · \(manager.selectedFiles.count) 个文件")
+                    .font(.system(size: 10, weight: .medium)).foregroundColor(Palette.green)
+                    .padding(.horizontal, 9).padding(.vertical, 5).background(Palette.mint).clipShape(Capsule())
+            }
+            Spacer(minLength: 4)
+            Button("全选可删除项") { manager.selectVisible(visible) }.disabled(visible.allSatisfy { !($0.canTrash) })
+            Button("清空选择") { manager.selected = [] }.disabled(manager.selected.isEmpty)
+            Rectangle().fill(Palette.line).frame(width: 1, height: 16)
+            Button(role: .destructive) { manager.requestDeletion(appModel: appModel) } label: {
+                Label(manager.selected.isEmpty ? "删除已选…" : "删除已选（\(manager.selected.count)）…", systemImage: "trash")
+            }.buttonStyle(ManagementToolbarButton(destructive: true)).disabled(manager.selected.isEmpty)
+        }.buttonStyle(.plain).font(.system(size: 11, weight: .medium)).foregroundColor(Palette.green)
+            .fixedSize(horizontal: false, vertical: true).disabled(manager.isProcessing)
     }
 
     private var sortMenu: some View {
@@ -178,6 +227,20 @@ struct FontManagementView: View {
             .disabled(manager.isProcessing || appModel.loading)
             .help("选择字体排序方式，与全部字体共用并保存设置")
             .accessibilityLabel("排序方式：\(appModel.sortOrder.title)")
+    }
+}
+
+private struct ManagementToolbarButton: ButtonStyle {
+    var destructive = false
+    @Environment(\.isEnabled) private var enabled
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.font(.system(size: 11, weight: .medium)).lineLimit(1).fixedSize()
+            .padding(.horizontal, 11).frame(height: 32)
+            .foregroundColor(enabled ? (destructive ? Color(red: 0.67, green: 0.25, blue: 0.23) : Palette.green) : Palette.muted.opacity(0.55))
+            .background(destructive && enabled ? Color(red: 0.99, green: 0.93, blue: 0.91) : Color.white.opacity(enabled ? 1 : 0.5))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Palette.line.opacity(0.7), lineWidth: 1))
+            .opacity(configuration.isPressed ? 0.65 : 1)
     }
 }
 

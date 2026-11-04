@@ -57,6 +57,7 @@ enum FontManagementSelfTest {
             let appModel = AppModel(defaults: defaults)
             appModel.fonts = [family, shared]; appModel.section = .all; appModel.recent = [shared.id]
             let manager = FontManagementModel()
+            manager.onlyDeletable = false // Compare both views with the complete catalog, including protected fixtures.
             manager.refresh(appModel.fonts); manager.selected = [family.id]
             let selectedPaths = manager.selectedFiles.map(\.id)
             let agreesWithLibrary = FontSortOrder.allCases.allSatisfy { order in
