@@ -6,21 +6,21 @@
 
 ![字体检索软件界面](documentation/assets/app-preview.png)
 
-## 下载 v1.9
+## 下载 v1.10
 
 | 下载文件 | 用途 |
 | --- | --- |
-| [下载 macOS 安装包（PKG）](https://github.com/sudazz777/ZiTiJianSuo/releases/download/v1.9/FontFinder-macOS-Universal-v1.9.pkg) | Apple 芯片与 Intel Mac，部署目标 macOS 13+ |
+| [下载 macOS 安装包（DMG）](https://github.com/sudazz777/ZiTiJianSuo/releases/download/v1.10/FontFinder-macOS-Universal-v1.10.dmg) | Apple 芯片与 Intel Mac，部署目标 macOS 13+ |
 
-安装包包含 Apple 芯片和 Intel 两种架构。部署目标不代表所有 macOS 版本均已实机验证。历史安装包保留在仓库中。新版本仅在 [GitHub Releases](https://github.com/sudazz777/ZiTiJianSuo/releases) 发布。
+安装包包含 Apple 芯片和 Intel 两种架构。部署目标不代表所有 macOS 版本均已实机验证。新版本仅在 [GitHub Releases](https://github.com/sudazz777/ZiTiJianSuo/releases) 发布。
 
 ## 安装
 
-1. 退出正在运行的旧版软件，下载并双击 macOS 通用版 PKG。
-2. 按系统安装向导操作；安装器直接将软件放入 `/Applications/字体检索.app`，系统需要时输入管理员密码。
-3. 从「应用程序」打开「字体检索」，输入中文、拼音或英文搜索字体。
+1. 退出旧版，下载并打开 macOS 通用版 DMG。
+2. 将磁盘中的「字体检索.app」拖到旁边的「应用程序」快捷方式；更新时选择替换旧版。
+3. 从「应用程序」启动字体检索，然后推出安装磁盘。
 
-当前 PKG 未使用 Developer ID Installer 证书签名；应用采用本地 ad-hoc 签名，尚未完成 Apple 公证。如果首次打开提示无法验证开发者，先尝试打开一次，再前往「系统设置 → 隐私与安全性」，对确认来源的应用选择「仍要打开」。参考 [Apple 官方说明](https://support.apple.com/zh-cn/102445)。
+应用采用本地 ad-hoc 签名，尚未完成 Developer ID 签名或 Apple 公证。如果首次打开提示无法验证开发者，先尝试打开一次，再前往「系统设置 → 隐私与安全性」，对确认来源的应用选择「仍要打开」。参考 [Apple 官方说明](https://support.apple.com/zh-cn/102445)。
 
 ## 功能
 
@@ -35,12 +35,12 @@
 
 安装包不含字体文件；每台 Mac 显示各自安装的字体。复制的是名称文字，当前版本没有直接连接设计软件写入字体的功能。
 
-## v1.9 版本说明
+## v1.10 版本说明
 
-提供 PKG 安装向导，直接安装到「应用程序」，无需手动拖拽。
+安装包改为标准 DMG，提供应用和「应用程序」快捷方式，支持拖拽安装。新版不再提供兼容 PKG。
 
-点击列表右上角当前排序名称，直接展开六个排序选项，取消中间的「排序方式」子菜单。当前选项显示勾选，选择后自动保存。
+保留单层排序菜单、字体文件定位和每日自动检查更新。
 
-新增「字体检索 → 检查更新…」。发现新版本时显示版本号与更新说明，可从 GitHub 下载 PKG 更新，也可以稍后提醒或跳过该版本。
+「检查更新」将下载 DMG。v1.9 及更早版本需要手动下载并安装本次新版，之后可继续使用检查更新。
 
 更多软件操作说明见 [使用说明](documentation/user-guide.md)。
