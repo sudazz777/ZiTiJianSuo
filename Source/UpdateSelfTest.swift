@@ -37,14 +37,10 @@ enum UpdateSelfTest {
 
             let suite = "FontFinder.Updates.Test.\(UUID().uuidString)", defaults = UserDefaults(suiteName: suite)!
             defer { defaults.removePersistentDomain(forName: suite) }
-            let policy = UpdateCheckPolicy(defaults: defaults), now = Date(timeIntervalSince1970: 1_700_000_000)
-            check(policy.isDue(manual: false, now: now), "first automatic check is due")
-            policy.recordAttempt(now: now)
-            check(!policy.isDue(manual: false, now: now.addingTimeInterval(1800)), "periodic checks wait one hour")
-            check(policy.isDue(manual: false, startup: true, now: now), "every startup checks even after a recent automatic check")
-            check(policy.isDue(manual: true, now: now), "manual check bypasses daily interval")
-            check(policy.isDue(manual: false, now: now.addingTimeInterval(3600)), "automatic check is due after one hour")
-            check(policy.isDue(manual: false, now: now.addingTimeInterval(-10)), "clock rollback does not suppress updates forever")
+            let policy = UpdateCheckPolicy(defaults: defaults)
+            check(policy.shouldCheck(manual: false, startup: true), "every startup checks for updates")
+            check(policy.shouldCheck(manual: true, startup: false), "manual update check remains available")
+            check(!policy.shouldCheck(manual: false, startup: false), "background activity does not trigger update checks")
             policy.skip(latest)
             check(!policy.shouldPresent(latest, manual: false), "skipped version is not announced automatically")
             check(policy.shouldPresent(latest, manual: true), "manual check still offers skipped release")

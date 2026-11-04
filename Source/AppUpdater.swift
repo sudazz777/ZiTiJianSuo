@@ -75,13 +75,7 @@ struct AppUpdateClient {
 
 struct UpdateCheckPolicy {
     let defaults: UserDefaults
-    static let interval: TimeInterval = 60 * 60
-    func isDue(manual: Bool, startup: Bool = false, now: Date) -> Bool {
-        if manual || startup { return true }
-        guard let last = defaults.object(forKey: "updates.lastAttempt") as? Date else { return true }
-        return now < last || now.timeIntervalSince(last) >= Self.interval
-    }
-    func recordAttempt(now: Date) { defaults.set(now, forKey: "updates.lastAttempt") }
+    func shouldCheck(manual: Bool, startup: Bool) -> Bool { manual || startup }
     func skip(_ release: AppUpdateRelease) { defaults.set(release.identifier, forKey: "updates.skippedRelease") }
     func shouldPresent(_ release: AppUpdateRelease, manual: Bool) -> Bool {
         manual || defaults.string(forKey: "updates.skippedRelease") != release.identifier
@@ -93,7 +87,7 @@ struct UpdateCheckPolicy {
     private let policy: UpdateCheckPolicy
     private let version: String
     private let build: Int
-    private var timer: Timer?
+    private var started = false
     private var task: Task<Void, Never>?
     private var pendingRelease: AppUpdateRelease?
     private var checking = false
@@ -106,26 +100,21 @@ struct UpdateCheckPolicy {
         build = Int(Bundle.main.object(forInfoDictionaryKey: "CFBundleVersion") as? String ?? "0") ?? 0
     }
     func start() {
-        guard timer == nil else { return }
-        timer = Timer.scheduledTimer(withTimeInterval: 3600, repeats: true) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.check(manual: false) }
-        }
-        timer?.tolerance = 300
+        guard !started else { return }
+        started = true
         check(manual: false, startup: true)
     }
-    func stop() { timer?.invalidate(); timer = nil; task?.cancel() }
+    func stop() { task?.cancel(); task = nil; started = false }
     func didBecomeActive() {
         if let release = pendingRelease {
             pendingRelease = nil
             if policy.shouldPresent(release, manual: false) { present(release) }
         }
-        check(manual: false)
     }
     func check(manual: Bool, startup: Bool = false) {
         if checking { manualRequested = manualRequested || manual; return }
-        guard policy.isDue(manual: manual, startup: startup, now: Date()) else { return }
+        guard policy.shouldCheck(manual: manual, startup: startup) else { return }
         checking = true; manualRequested = manual; onCheckingChanged?(true)
-        policy.recordAttempt(now: Date())
         task = Task { [weak self] in
             guard let self else { return }
             do {
