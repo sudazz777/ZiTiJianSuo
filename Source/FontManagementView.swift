@@ -38,7 +38,7 @@ import SwiftUI
         let text = NSTextView(frame: NSRect(x: 0, y: 0, width: 500, height: 100))
         text.isEditable = false; text.isSelectable = true; text.font = .systemFont(ofSize: 11)
         text.isVerticallyResizable = true; text.isHorizontallyResizable = false
-        text.textContainer?.containerSize = NSSize(width: 500, height: .greatestFiniteMagnitude)
+        text.textContainer?.containerSize = NSSize(width: 500, height: CGFloat.greatestFiniteMagnitude)
         text.textContainer?.widthTracksTextView = true
         text.string = chosen.map { "\($0.title) · \($0.faceCount) 种样式\n\($0.url.path)" }.joined(separator: "\n\n")
         text.sizeToFit(); scroll.documentView = text; alert.accessoryView = scroll
