@@ -5,14 +5,10 @@ import hashlib, json, pathlib, re
 manifest = json.loads(pathlib.Path('release/latest.json').read_text())
 version = manifest['version']
 assert re.fullmatch(r'[0-9]+\.[0-9]+(?:\.[0-9]+)?', version)
-package = pathlib.Path('release') / f'FontFinder-macOS-Universal-v{version}.pkg'
+package = pathlib.Path('release') / f'FontFinder-macOS-Universal-v{version}.dmg'
 assert manifest['downloadURL'] == f'https://github.com/sudazz777/ZiTiJianSuo/releases/download/v{version}/{package.name}'
 assert hashlib.sha256(package.read_bytes()).hexdigest() == manifest['sha256']
 assert package.stat().st_size == manifest['size']
-disk_image = pathlib.Path('release') / f'FontFinder-macOS-Universal-v{version}.dmg'
-assert manifest['diskImageURL'] == f'https://github.com/sudazz777/ZiTiJianSuo/releases/download/v{version}/{disk_image.name}'
-assert hashlib.sha256(disk_image.read_bytes()).hexdigest() == manifest['diskImageSHA256']
-assert disk_image.stat().st_size == manifest['diskImageSize']
 print(version)
 PY
 )
@@ -28,7 +24,6 @@ else
 fi
 gh release upload "$release_tag" \
   "release/FontFinder-macOS-Universal-v$release_version.dmg" \
-  "release/FontFinder-macOS-Universal-v$release_version.pkg" \
   release/latest.json release/SHA256SUMS.txt --clobber
 gh release edit "$release_tag" --draft=false --latest \
   --title "字体检索 $release_tag" --notes-file release/release-notes.md

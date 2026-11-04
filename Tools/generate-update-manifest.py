@@ -1,4 +1,4 @@
-"""Generate metadata for the DMG and the legacy updater's compatible PKG."""
+"""Generate GitHub release metadata from the DMG that was actually built."""
 import hashlib
 import json
 from pathlib import Path
@@ -11,8 +11,7 @@ with (root / '字体检索.app/Contents/Info.plist').open('rb') as source:
 version = info['CFBundleShortVersionString']
 assert re.fullmatch(r'[0-9]+\.[0-9]+(?:\.[0-9]+)?', version)
 build = int(info['CFBundleVersion'])
-package = root / 'release' / f'FontFinder-macOS-Universal-v{version}.pkg'
-disk_image = root / 'release' / f'FontFinder-macOS-Universal-v{version}.dmg'
+package = root / 'release' / f'FontFinder-macOS-Universal-v{version}.dmg'
 notes = json.loads((root / 'updates/release-notes.json').read_text())
 assert isinstance(notes, list) and 0 < len(notes) <= 20
 assert all(isinstance(note, str) and len(note) <= 500 for note in notes)
@@ -22,15 +21,11 @@ manifest = {
     'downloadURL': f'https://github.com/sudazz777/ZiTiJianSuo/releases/download/v{version}/{package.name}',
     'sha256': hashlib.sha256(package.read_bytes()).hexdigest(),
     'size': package.stat().st_size,
-    'diskImageURL': f'https://github.com/sudazz777/ZiTiJianSuo/releases/download/v{version}/{disk_image.name}',
-    'diskImageSHA256': hashlib.sha256(disk_image.read_bytes()).hexdigest(),
-    'diskImageSize': disk_image.stat().st_size,
 }
 (root / 'release/latest.json').write_text(json.dumps(manifest, ensure_ascii=False, indent=2) + '\n')
 body = '\n'.join(f'- {note}' for note in notes)
 (root / 'release/release-notes.md').write_text(
-    f'{body}\n\n推荐下载 DMG，打开后双击「安装字体检索.pkg」，按向导安装到「应用程序」。\n\n'
-    '单独的 PKG 保留给 v1.9 旧版更新程序使用。\n\n'
+    f'{body}\n\n下载 DMG，退出旧版后将「字体检索」拖入「应用程序」快捷方式，替换旧版。\n\n'
     '安装包尚未签名公证，首次打开可能需要在「隐私与安全性」中确认。\n'
 )
 print(f'Generated update metadata for v{version} build {build}')

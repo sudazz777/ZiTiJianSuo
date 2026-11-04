@@ -16,8 +16,8 @@ trap cleanup EXIT
 mkdir -p "$mountpoint"
 hdiutil attach "$disk_image" -readonly -nobrowse -mountpoint "$mountpoint"
 mounted=true
-cmp "$mountpoint/安装字体检索.pkg" "$ROOT/release/FontFinder-macOS-Universal-v$release_version.pkg"
-test -s "$mountpoint/安装说明.txt"
-sudo installer -pkg "$mountpoint/安装字体检索.pkg" -target /
+test "$(readlink "$mountpoint/应用程序")" = /Applications
+codesign --verify --deep --strict "$mountpoint/字体检索.app"
+sudo ditto "$mountpoint/字体检索.app" /Applications/字体检索.app
 python3 "$ROOT/Tools/verify-installed-app.py"
-echo "SUCCESS: DMG mounted, embedded installer verified and app installed in /Applications"
+echo "SUCCESS: DMG mounted, Applications shortcut verified and app copied into /Applications"

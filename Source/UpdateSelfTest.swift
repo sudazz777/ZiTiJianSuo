@@ -27,22 +27,7 @@ enum UpdateSelfTest {
             check(try !latest.isNewer(than: "1.9", build: 10), "current release is not offered")
             check(try !latest.isNewer(than: "2.0", build: 1), "older release is not offered")
             let base = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
-            check(try AppUpdateRelease.decode(encoded).preferredDownloadURL == latest.downloadURL, "legacy metadata still downloads PKG")
-            var diskManifest = base
-            diskManifest["diskImageURL"] = AppUpdateRelease.diskImageURL(version: latest.version).absoluteString
-            diskManifest["diskImageSHA256"] = String(repeating: "b", count: 64)
-            diskManifest["diskImageSize"] = 200
-            let diskData = try JSONSerialization.data(withJSONObject: diskManifest)
-            check(try AppUpdateRelease.decode(diskData).preferredDownloadURL == AppUpdateRelease.diskImageURL(version: latest.version), "new update client prefers validated DMG")
-            for field in ["diskImageURL", "diskImageSHA256", "diskImageSize"] {
-                var partial = diskManifest; partial.removeValue(forKey: field)
-                rejects("rejects incomplete DMG metadata \(field)") { _ = try AppUpdateRelease.decode(JSONSerialization.data(withJSONObject: partial)) }
-            }
-            for (field, value) in [("diskImageURL", "https://example.com/app.dmg" as Any), ("diskImageSHA256", "bad" as Any), ("diskImageSize", 0 as Any)] {
-                var invalid = diskManifest; invalid[field] = value
-                rejects("rejects invalid DMG metadata \(field)") { _ = try AppUpdateRelease.decode(JSONSerialization.data(withJSONObject: invalid)) }
-            }
-            for (field, value) in [("downloadURL", "https://example.com/app.pkg" as Any), ("downloadURL", "https://github.com/other/repo/releases/download/v1.9/app.pkg" as Any), ("downloadURL", latest.downloadURL.absoluteString.replacingOccurrences(of: "https:", with: "http:") as Any), ("schemaVersion", 2 as Any), ("sha256", "bad" as Any), ("size", 0 as Any), ("build", 0 as Any)] {
+            for (field, value) in [("downloadURL", "https://example.com/app.dmg" as Any), ("downloadURL", "https://github.com/other/repo/releases/download/v1.9/app.dmg" as Any), ("downloadURL", latest.downloadURL.absoluteString.replacingOccurrences(of: "https:", with: "http:") as Any), ("schemaVersion", 2 as Any), ("sha256", "bad" as Any), ("size", 0 as Any), ("build", 0 as Any)] {
                 var invalid = base; invalid[field] = value
                 let data = try JSONSerialization.data(withJSONObject: invalid)
                 rejects("rejects invalid metadata field \(field)") { _ = try AppUpdateRelease.decode(data) }

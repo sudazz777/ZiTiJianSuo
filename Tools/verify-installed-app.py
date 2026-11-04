@@ -1,4 +1,4 @@
-"""Verify the app and installer receipt after a real macOS installer run."""
+"""Verify a DMG app copied into Applications."""
 import hashlib
 from pathlib import Path
 import plistlib
@@ -19,8 +19,4 @@ assert source_files == installed_files, 'Installed bundle contents differ'
 for relative in source_files:
     assert hashlib.sha256((source / relative).read_bytes()).digest() == hashlib.sha256((installed / relative).read_bytes()).digest(), f'Installed file differs: {relative}'
 subprocess.run(['codesign', '--verify', '--deep', '--strict', str(installed)], check=True)
-receipt = plistlib.loads(subprocess.check_output(['pkgutil', '--pkg-info-plist', 'local.fontname.mac.installer']))
-assert receipt['install-location'].strip('/') == 'Applications', 'Incorrect installation location'
-assert receipt['pkg-version'] == expected['CFBundleShortVersionString']
-assert receipt['volume'] == '/'
-print('SUCCESS: PKG installed the exact signed app in /Applications and registered its receipt')
+print('SUCCESS: DMG app was copied intact to /Applications with its code signature preserved')
