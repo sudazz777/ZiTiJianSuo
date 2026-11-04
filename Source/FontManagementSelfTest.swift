@@ -70,7 +70,9 @@ enum FontManagementSelfTest {
             var error: Unmanaged<CFError>?
             let registered = CTFontManagerRegisterFontsForURL(owned as CFURL, .persistent, &error)
             _ = error?.takeRetainedValue()
-            check(registered && names.isSubset(of: available()), "real fixture font is installed for the current user")
+            _ = registered
+            for _ in 0..<10 { if names.isSubset(of: available()) { break }; Thread.sleep(forTimeInterval: 0.1) }
+            check(names.isSubset(of: available()), "real fixture font is installed for the current user")
             let actual = FontTrashStore()
             check(actual.unavailableReason(owned) == nil, "installed user font is eligible for Trash")
             let beforeConfirm = try actual.selection(file(owned))

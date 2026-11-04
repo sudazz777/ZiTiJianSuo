@@ -113,6 +113,8 @@ enum SelfTest {
         check(!accepted(priority: 50000), "dynamic font excluded")
         check(!accepted(exists: false), "missing or undownloaded file excluded")
         check(!accepted(url: URL(fileURLWithPath: "/Applications/Example.app/Contents/Fonts/Probe.ttf")), "app bundled font excluded")
+        check(!accepted(url: URL(fileURLWithPath: "/Users/example/.Trash/Font.ttf")), "trashed fonts are excluded from catalog")
+        check(!accepted(url: URL(fileURLWithPath: "/Volumes/Fonts/.Trashes/501/Font.ttf")), "external volume Trash fonts are excluded from catalog")
         check(!accepted(name: ".HiddenFont"), "hidden system font excluded")
         check(accepted(priority: 60000, url: URL(fileURLWithPath: "/System/Library/AssetsV2/com_apple_MobileAsset_Font7/Example.asset/AssetData/Probe.ttf")), "installed system font download retained")
 

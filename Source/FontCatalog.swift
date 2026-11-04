@@ -80,7 +80,7 @@ enum FontBookSource {
         guard enabled, scope == Int(CTFontManagerScope.persistent.rawValue), exists,
               let url = url, url.isFileURL, !name.isEmpty, !family.isEmpty,
               !name.hasPrefix("."), !family.hasPrefix("."),
-              !url.pathComponents.contains(where: { $0.lowercased().hasSuffix(".app") }) else { return false }
+              !url.pathComponents.contains(where: { $0.lowercased().hasSuffix(".app") || $0 == ".Trash" || $0 == ".Trashes" }) else { return false }
         let standardPriorities = [Int(kCTFontPrioritySystem), Int(kCTFontPriorityNetwork), Int(kCTFontPriorityComputer), Int(kCTFontPriorityUser)]
         let downloadedSystemFont = url.path.hasPrefix("/System/Library/Assets") && url.pathComponents.contains { $0.hasPrefix("com_apple_MobileAsset_Font") }
         return standardPriorities.contains(priority) || downloadedSystemFont
