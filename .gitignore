@@ -7,3 +7,5 @@ __MACOSX/
 .env.*
 !.env.example
 
+
+__pycache__/
