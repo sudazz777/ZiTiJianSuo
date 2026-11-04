@@ -94,7 +94,7 @@ struct FontManagementView: View {
                 Spacer()
                 Button(role: .destructive) { manager.requestDeletion(appModel: appModel) } label: {
                     Label("删除已选（\(manager.selected.count)）…", systemImage: "trash")
-                }.buttonStyle(.bordered).disabled(manager.selected.isEmpty)
+                }.buttonStyle(.bordered).fixedSize().disabled(manager.selected.isEmpty)
             }.disabled(manager.isProcessing)
             ScrollView {
                 LazyVStack(alignment: .leading, spacing: 8) {

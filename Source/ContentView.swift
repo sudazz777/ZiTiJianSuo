@@ -84,6 +84,7 @@ struct ContentView: View {
                     HStack(spacing: 11) {
                         Image(systemName: section.icon).font(.system(size: 15)).frame(width: 18)
                         Text(section.rawValue).font(.system(size: 12, weight: model.section == section ? .semibold : .regular))
+                            .lineLimit(1).minimumScaleFactor(0.85).layoutPriority(1)
                         Spacer(minLength: 0)
                         Text(count(section)).font(.system(size: 10, design: .monospaced)).opacity(0.7)
                     }.padding(.horizontal, 12).frame(maxWidth: .infinity, minHeight: 43)
