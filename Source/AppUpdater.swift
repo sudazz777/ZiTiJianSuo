@@ -31,11 +31,24 @@ struct AppUpdateRelease: Codable {
     let downloadURL: URL
     let sha256: String
     let size: Int
+    let diskImageURL: URL?
+    let diskImageSHA256: String?
+    let diskImageSize: Int?
+    var preferredDownloadURL: URL { diskImageURL ?? downloadURL }
+    init(schemaVersion: Int, version: String, build: Int, releaseNotes: [String], downloadURL: URL, sha256: String, size: Int,
+         diskImageURL: URL? = nil, diskImageSHA256: String? = nil, diskImageSize: Int? = nil) {
+        self.schemaVersion = schemaVersion; self.version = version; self.build = build; self.releaseNotes = releaseNotes
+        self.downloadURL = downloadURL; self.sha256 = sha256; self.size = size
+        self.diskImageURL = diskImageURL; self.diskImageSHA256 = diskImageSHA256; self.diskImageSize = diskImageSize
+    }
     var identifier: String { "\(version)+\(build)" }
     static let repository = "sudazz777/ZiTiJianSuo"
     static let metadataURL = URL(string: "https://github.com/\(repository)/releases/latest/download/latest.json")!
     static func packageURL(version: String) -> URL {
         URL(string: "https://github.com/\(repository)/releases/download/v\(version)/FontFinder-macOS-Universal-v\(version).pkg")!
+    }
+    static func diskImageURL(version: String) -> URL {
+        URL(string: "https://github.com/\(repository)/releases/download/v\(version)/FontFinder-macOS-Universal-v\(version).dmg")!
     }
     static func decode(_ data: Data) throws -> Self {
         guard data.count <= 64 * 1024 else { throw UpdateError.invalidRelease }
@@ -45,6 +58,11 @@ struct AppUpdateRelease: Codable {
               release.downloadURL == packageURL(version: release.version),
               release.sha256.count == 64, release.sha256.allSatisfy({ "0123456789abcdef".contains($0) }),
               release.releaseNotes.count <= 20, release.releaseNotes.allSatisfy({ $0.count <= 500 }) else { throw UpdateError.invalidRelease }
+        if release.diskImageURL != nil || release.diskImageSHA256 != nil || release.diskImageSize != nil {
+            guard release.diskImageURL == diskImageURL(version: release.version),
+                  let hash = release.diskImageSHA256, hash.count == 64, hash.allSatisfy({ "0123456789abcdef".contains($0) }),
+                  let size = release.diskImageSize, size > 0 else { throw UpdateError.invalidRelease }
+        }
         return release
     }
     func isNewer(than version: String, build currentBuild: Int) throws -> Bool {
@@ -154,13 +172,14 @@ struct UpdateCheckPolicy {
         let alert = NSAlert()
         alert.messageText = "字体检索有新版本 v\(release.version)"
         let notes = release.releaseNotes.prefix(8).map { "• \($0)" }.joined(separator: "\n")
-        alert.informativeText = "当前版本：\(version)\n\n\(notes)\n\n下载后运行 PKG 安装包，更新到“应用程序”文件夹。"
+        let instructions = release.diskImageURL == nil ? "下载后运行 PKG 安装包，更新到“应用程序”文件夹。" : "打开下载的 DMG，双击其中的安装器，更新到“应用程序”文件夹。"
+        alert.informativeText = "当前版本：\(version)\n\n\(notes)\n\n\(instructions)"
         alert.addButton(withTitle: "下载更新")
         alert.addButton(withTitle: "稍后提醒")
         alert.addButton(withTitle: "跳过此版本")
         switch alert.runModal() {
         case .alertFirstButtonReturn:
-            if !NSWorkspace.shared.open(release.downloadURL) { message("无法打开下载", text: "请前往 GitHub 仓库的 Releases 下载最新版安装包。") }
+            if !NSWorkspace.shared.open(release.preferredDownloadURL) { message("无法打开下载", text: "请前往 GitHub 仓库的 Releases 下载最新版安装包。") }
         case .alertThirdButtonReturn: policy.skip(release)
         default: break
         }
