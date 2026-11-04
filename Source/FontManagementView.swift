@@ -8,7 +8,7 @@ import SwiftUI
     @Published var query = ""
     @Published var onlyDeletable = false
     @Published var isProcessing = false
-    @Published var status = "选择字体文件后，可批量移到电脑废纸篓。"
+    @Published var status = "选择字体后，可批量移到电脑废纸篓。"
     @Published var results: [FontTrashResult] = []
     let store = FontTrashStore()
     var selectedFiles: [LocalFontFile] { LocalFontFamily.selectedFiles(in: families, selected: selected) }
@@ -150,6 +150,12 @@ struct FontManagementView: View {
     }
 }
 
+private struct FontManagementCardButtonStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label.foregroundColor(Palette.ink).opacity(configuration.isPressed ? 0.85 : 1)
+    }
+}
+
 private struct FontManagementCard: View {
     @ObservedObject var appModel: AppModel
     @ObservedObject var manager: FontManagementModel
@@ -182,7 +188,7 @@ private struct FontManagementCard: View {
                     Text("Aa Bb Cc 0123456789").font(.custom(face.id, size: 14))
                         .lineLimit(1).frame(height: 22, alignment: .leading)
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(16).contentShape(Rectangle())
-            }.buttonStyle(.plain).disabled(!item.canTrash || manager.isProcessing)
+            }.buttonStyle(FontManagementCardButtonStyle()).disabled(!item.canTrash || manager.isProcessing)
                 .accessibilityLabel("\(item.font.english)，\(chosen ? "已选择" : "未选择")")
                 .help(item.unavailableReason ?? "选择此家族的全部字体文件；共用文件的其他字体也会一起移除")
             HStack(spacing: 6) {
