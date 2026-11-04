@@ -27,7 +27,7 @@ enum UpdateSelfTest {
             check(try !latest.isNewer(than: "1.9", build: 10), "current release is not offered")
             check(try !latest.isNewer(than: "2.0", build: 1), "older release is not offered")
             let base = try JSONSerialization.jsonObject(with: encoded) as! [String: Any]
-            for (field, value) in [("downloadURL", "https://example.com/app.dmg" as Any), ("downloadURL", "https://github.com/other/repo/releases/download/v1.9/app.dmg" as Any), ("downloadURL", latest.downloadURL.absoluteString.replacingOccurrences(of: "https:", with: "http:") as Any), ("schemaVersion", 2 as Any), ("sha256", "bad" as Any), ("size", 0 as Any), ("build", 0 as Any)] {
+            for (field, value) in [("downloadURL", latest.downloadURL.absoluteString.replacingOccurrences(of: ".dmg", with: ".pkg") as Any), ("downloadURL", "https://example.com/app.dmg" as Any), ("downloadURL", "https://github.com/other/repo/releases/download/v1.9/app.dmg" as Any), ("downloadURL", latest.downloadURL.absoluteString.replacingOccurrences(of: "https:", with: "http:") as Any), ("schemaVersion", 2 as Any), ("sha256", "bad" as Any), ("size", 0 as Any), ("build", 0 as Any)] {
                 var invalid = base; invalid[field] = value
                 let data = try JSONSerialization.data(withJSONObject: invalid)
                 rejects("rejects invalid metadata field \(field)") { _ = try AppUpdateRelease.decode(data) }

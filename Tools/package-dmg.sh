@@ -6,7 +6,7 @@ release_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString'
 disk_image="$ROOT/release/FontFinder-macOS-Universal-v$release_version.dmg"
 staging=$(mktemp -d "${TMPDIR:-/tmp}/FontFinder-dmg.XXXXXX")
 trap 'rm -rf "$staging"' EXIT
-mkdir -p "$staging/contents"
+mkdir -p "$staging/contents" "$ROOT/release"
 codesign --verify --deep --strict "$APP"
 ditto "$APP" "$staging/contents/字体检索.app"
 ln -s /Applications "$staging/contents/应用程序"

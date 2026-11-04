@@ -35,7 +35,6 @@ jobs:
           mkdir -p release
           bash Tools/package-dmg.sh
           release_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "字体检索.app/Contents/Info.plist")
-          ditto -c -k --keepParent "字体检索.app" "release/FontFinder-macOS-Universal-v$release_version.zip"
           python3 Tools/generate-update-manifest.py
           (cd release && shasum -a 256 "FontFinder-macOS-Universal-v$release_version.dmg" > SHA256SUMS.txt)
       - name: Mount DMG and verify drag installation into Applications
