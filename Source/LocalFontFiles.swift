@@ -32,6 +32,31 @@ struct LocalFontFile: Identifiable {
     }
 }
 
+struct LocalFontFamily: Identifiable {
+    let font: FontRecord
+    let files: [LocalFontFile]
+    let unavailableReason: String?
+    var id: String { font.id }
+    var fileIDs: Set<String> { Set(files.map(\.id)) }
+    var canTrash: Bool { unavailableReason == nil }
+
+    static func catalog(_ fonts: [FontRecord], files: [LocalFontFile]) -> [Self] {
+        let indexed = Dictionary(uniqueKeysWithValues: files.map { ($0.id, $0) })
+        return fonts.map { font in
+            let paths = Set(font.faces.compactMap { $0.sourceURL?.standardizedFileURL.path })
+            let members = paths.sorted().compactMap { indexed[$0] }
+            let missing = font.faces.contains { $0.sourceURL == nil } || members.isEmpty || members.count != paths.count
+            return Self(font: font, files: members,
+                        unavailableReason: missing ? "字体文件不可用" : members.compactMap(\.unavailableReason).first)
+        }.sorted { $0.font.english.localizedStandardCompare($1.font.english) == .orderedAscending }
+    }
+
+    static func selectedFiles(in families: [Self], selected: Set<String>) -> [LocalFontFile] {
+        let chosen = families.filter { selected.contains($0.id) }.flatMap(\.files)
+        return Dictionary(grouping: chosen, by: \.id).values.compactMap(\.first).sorted { $0.id < $1.id }
+    }
+}
+
 struct FontFileIdentity: Equatable {
     let device: UInt64
     let inode: UInt64

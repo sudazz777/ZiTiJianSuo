@@ -44,6 +44,23 @@ enum FontManagementSelfTest {
             let catalog = LocalFontFile.catalog([family], store: store)
             check(catalog.count == 1 && catalog[0].faceCount == 2, "font styles sharing a file are grouped into one deletion item")
 
+            let cards = LocalFontFamily.catalog([family], files: catalog)
+            check(cards.count == 1 && cards[0].font.faces.count == 2, "management grid merges weights into the same family card as the library")
+            let shared = FontRecord(id: "Shared", family: "Shared", english: "Shared", chinese: nil, style: "Regular", aliases: [], allNames: [], faces: [faces[0]])
+            let sharedFiles = LocalFontFile.catalog([family, shared], store: store)
+            let sharedCards = LocalFontFamily.catalog([family, shared], files: sharedFiles)
+            check(Set(sharedCards.map(\.id)) == Set([family.id, shared.id]), "management cards preserve the exact library family set")
+            check(LocalFontFamily.selectedFiles(in: sharedCards, selected: [family.id, shared.id]).count == 1, "selecting families that share a file deletes that file only once")
+            let secondFile = root.appendingPathComponent("second.ttf")
+            try Data("test font data".utf8).write(to: secondFile)
+            let secondFace = FontFace(id: "Test-Second", family: "Test", englishFamily: "Test", chineseFamily: nil, style: "Bold", sourceURL: secondFile)
+            let multiple = FontRecord(id: "Multiple", family: "Multiple", english: "Multiple", chinese: nil, style: "Regular", aliases: [], allNames: [], faces: [faces[0], secondFace])
+            let multipleCards = LocalFontFamily.catalog([multiple], files: LocalFontFile.catalog([multiple], store: store))
+            check(multipleCards[0].canTrash && LocalFontFamily.selectedFiles(in: multipleCards, selected: [multiple.id]).count == 2, "one family selection includes all of its separate weight files")
+            let protectedFiles = [LocalFontFile(url: sample, families: ["Test"], faceCount: 2, unavailableReason: "系统字体受保护")]
+            check(LocalFontFamily.catalog([family], files: protectedFiles)[0].canTrash == false, "protected fonts remain visible as preview cards and cannot be selected for deletion")
+            check(LocalFontFamily.catalog([family], files: [])[0].canTrash == false, "missing file metadata keeps the family visible and blocks deletion")
+
             guard let flag = CommandLine.arguments.firstIndex(of: "--font-management-self-test"), flag + 1 < CommandLine.arguments.count else {
                 throw FontFileError.message("Provide the font fixture directory")
             }

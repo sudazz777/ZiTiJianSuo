@@ -117,7 +117,7 @@ struct ContentView: View {
         case .chinese: return "\(model.fonts.filter(\.supportsChinese).count)"
         case .favorites: return "\(model.fonts.filter { model.favorites.contains($0.id) }.count)"
         case .recent: return "\(model.fonts.filter { model.recent.contains($0.id) }.count)"
-        case .management: return "\(fontManager.files.count)"
+        case .management: return "\(fontManager.families.count)"
         }
     }
 
@@ -192,7 +192,7 @@ struct ContentView: View {
             HStack {
                 Text("字体册已启用字体 · 复制家族名称").font(.system(size: 9)).foregroundColor(Palette.muted)
                 Spacer()
-                Text("v1.12").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
+                Text("v1.13").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
             }.padding(.horizontal, 25).frame(height: 35)
         }
     }
