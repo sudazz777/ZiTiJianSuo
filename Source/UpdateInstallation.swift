@@ -101,13 +101,15 @@ enum AppUpdateInstallation {
             _ = try tool("/usr/bin/hdiutil", ["detach", mountpoint.path])
             mounted = false
             try manager.removeItem(at: mountpoint)
-            guard let currentExecutable = Bundle.main.executableURL else {
+            let currentApp = Bundle.main.bundleURL
+            guard currentApp.pathExtension == "app" else {
                 throw UpdateInstallationError(message: "无法启动独立更新助手，请手动安装新版。")
             }
-            let helper = directory.appendingPathComponent("Installer")
-            try manager.copyItem(at: currentExecutable, to: helper)
-            try manager.setAttributes([.posixPermissions: 0o700], ofItemAtPath: helper.path)
-            _ = try tool("/usr/bin/codesign", ["--verify", "--strict", helper.path])
+            // A bundle-signed executable's signature includes its Info.plist.
+            // Keep the complete signed bundle for the independent helper.
+            let helper = directory.appendingPathComponent("Helper.app")
+            _ = try tool("/usr/bin/ditto", [currentApp.path, helper.path])
+            try validateBundle(helper)
             let job = UpdateInstallJob(parentPID: ProcessInfo.processInfo.processIdentifier, token: UUID().uuidString,
                                        destination: destination, destinationIdentity: originalIdentity, oldExecutableHash: originalHash,
                                        stagedIdentity: try UpdateInstallIdentity.read(stage), stagedExecutableHash: try digest(executable(in: stage)), release: release)
@@ -132,7 +134,7 @@ enum AppUpdateInstallation {
         let marker = prepared.directory.appendingPathComponent("handed-off")
         try Data(job.token.utf8).write(to: marker, options: .atomic)
         let process = Process()
-        process.executableURL = prepared.directory.appendingPathComponent("Installer")
+        process.executableURL = try executable(in: prepared.directory.appendingPathComponent("Helper.app"))
         process.arguments = ["--install-update-helper", prepared.jobURL.path]
         process.standardInput = FileHandle.nullDevice
         let log = prepared.directory.appendingPathComponent("helper.log")

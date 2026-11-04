@@ -54,18 +54,26 @@ enum UpdateInstallationSelfTest {
                   "staged update and installed app are on the same filesystem")
             let permissions = try manager.attributesOfItem(atPath: first.directory.path)[.posixPermissions] as? NSNumber
             check(permissions?.intValue == 0o700, "the update job directory is private to the current user")
-            let independent = try AppUpdateInstallation.tool(first.directory.appendingPathComponent("Installer").path, ["--update-self-test"])
-            check(independent.contains("update checks passed"), "the copied signed helper executable runs without the original application bundle")
+            let helper = first.directory.appendingPathComponent("Helper.app")
+            try AppUpdateInstallation.validateBundle(helper)
+            let independent = try AppUpdateInstallation.tool(helper.appendingPathComponent("Contents/MacOS/FontName").path, ["--update-self-test"])
+            check(independent.contains("update checks passed"), "the independent helper retains its complete bundle signature and runs outside the installed app")
             let output = try manager.contentsOfDirectory(atPath: first.directory.path)
             check(!output.contains("volume"), "the prepared DMG is detached before the old app exits")
             check(!AppUpdateInstallation.installationAuthorized(firstJob, directory: first.directory), "preparation alone never authorizes an installation")
             try Data(firstJob.token.utf8).write(to: first.directory.appendingPathComponent("handed-off"))
             try Data(firstJob.token.utf8).write(to: first.directory.appendingPathComponent("ready"))
             check(!AppUpdateInstallation.installationAuthorized(firstJob, directory: first.directory), "a ready helper without a parent commit cannot install")
+            rejects("a ready helper cannot replace any app before the parent commits") {
+                try AppUpdateInstallation.install(firstJob, directory: first.directory, policy: policy, requireHandoff: true) { _ in }
+            }
             try Data(firstJob.token.utf8).write(to: first.directory.appendingPathComponent("commit"))
             check(AppUpdateInstallation.installationAuthorized(firstJob, directory: first.directory), "matching parent commit authorizes the prepared helper job")
             AppUpdateInstallation.abort(first)
             check(!AppUpdateInstallation.installationAuthorized(firstJob, directory: first.directory), "an aborted handoff cannot install even if it already has a commit")
+            rejects("aborting a committed helper prevents any replacement") {
+                try AppUpdateInstallation.install(firstJob, directory: first.directory, policy: policy, requireHandoff: true) { _ in }
+            }
             AppUpdateInstallation.discard(first)
             check(manager.fileExists(atPath: first.directory.path), "discarding a handed-off job aborts it without removing files in use")
             // This fixture never spawned an installer; remove the test-only marker before exercising pre-handoff discard.
