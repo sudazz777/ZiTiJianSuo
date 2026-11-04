@@ -12,8 +12,6 @@
 | --- | --- |
 | [下载 macOS 安装包（DMG）](https://github.com/sudazz777/ZiTiJianSuo/releases/download/v1.10/FontFinder-macOS-Universal-v1.10.dmg) | Apple 芯片与 Intel Mac，部署目标 macOS 13+ |
 
-安装包包含 Apple 芯片和 Intel 两种架构。部署目标不代表所有 macOS 版本均已实机验证。新版本仅在 [GitHub Releases](https://github.com/sudazz777/ZiTiJianSuo/releases) 发布。
-
 ## 安装
 
 1. 退出旧版，下载并打开 macOS 通用版 DMG。
