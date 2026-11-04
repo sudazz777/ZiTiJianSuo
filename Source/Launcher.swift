@@ -3,6 +3,8 @@ import SwiftUI
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
     let model = AppModel()
+    let updater = AppUpdater()
+    private var updateMenuItem: NSMenuItem?
     var window: NSWindow!
 
     func applicationDidFinishLaunching(_ notification: Notification) {
@@ -24,6 +26,13 @@ import SwiftUI
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         model.reload()
+        if !CommandLine.arguments.contains("--capture") {
+            updater.onCheckingChanged = { [weak self] checking in
+                self?.updateMenuItem?.title = checking ? "正在检查更新…" : "检查更新…"
+                self?.updateMenuItem?.isEnabled = !checking
+            }
+            updater.start()
+        }
         if let index = CommandLine.arguments.firstIndex(of: "--capture"), index + 1 < CommandLine.arguments.count {
             let path = CommandLine.arguments[index + 1]
             waitThenCapture(path, attempts: 40)
@@ -54,7 +63,10 @@ import SwiftUI
 
     func applicationDidBecomeActive(_ notification: Notification) {
         if !model.fonts.isEmpty { model.reload() }
+        if !CommandLine.arguments.contains("--capture") { updater.didBecomeActive() }
     }
+
+    func applicationWillTerminate(_ notification: Notification) { updater.stop() }
 
     private func makeMenu() {
         let bar = NSMenu()
@@ -62,6 +74,8 @@ import SwiftUI
         let appMenu = NSMenu()
         appItem.submenu = appMenu
         appMenu.addItem(item("关于字体检索", #selector(about), ""))
+        let updateItem = item("检查更新…", #selector(checkUpdates), "")
+        updateMenuItem = updateItem; appMenu.addItem(updateItem)
         appMenu.addItem(.separator())
         appMenu.addItem(item("隐藏字体检索", #selector(NSApplication.hide(_:)), "h", target: NSApp))
         appMenu.addItem(.separator())
@@ -104,6 +118,7 @@ import SwiftUI
     }
     @objc func focusSearch() { NotificationCenter.default.post(name: .focusFontSearch, object: nil) }
     @objc func refresh() { model.reload() }
+    @objc func checkUpdates() { updater.check(manual: true) }
     @objc func favorite() { if let f = model.selected { model.toggleFavorite(f.id) } }
     @objc func copyName(_ sender: NSMenuItem) {
         guard let font = model.selected else { return }
@@ -128,6 +143,10 @@ import SwiftUI
         if CommandLine.arguments.contains("--self-test") { SelfTest.run(); return }
         if CommandLine.arguments.contains("--cloud-self-test") {
             Task { @MainActor in await CloudSelfTest.run(); exit(0) }
+            RunLoop.main.run(); return
+        }
+        if CommandLine.arguments.contains("--update-self-test") {
+            Task { @MainActor in await UpdateSelfTest.run(); exit(0) }
             RunLoop.main.run(); return
         }
         let app = NSApplication.shared

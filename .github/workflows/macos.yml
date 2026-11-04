@@ -3,9 +3,9 @@ name: Build and test macOS app
 on:
   push:
     branches: [main, 'codex/**']
-    paths: ['Tools/**', 'Source/**', 'Info.plist', 'build.sh', '.github/workflows/macos.yml']
+    paths: ['Tools/**', 'Source/**', 'updates/**', 'Info.plist', 'build.sh', '.github/workflows/macos.yml']
   pull_request:
-    paths: ['Tools/**', 'Source/**', 'Info.plist', 'build.sh', '.github/workflows/macos.yml']
+    paths: ['Tools/**', 'Source/**', 'updates/**', 'Info.plist', 'build.sh', '.github/workflows/macos.yml']
   workflow_dispatch:
 
 permissions:
@@ -15,21 +15,33 @@ jobs:
   build:
     runs-on: macos-14
     timeout-minutes: 20
+    outputs:
+      version: ${{ steps.metadata.outputs.version }}
     steps:
       - uses: actions/checkout@v4
       - name: Build Universal app
         run: bash build.sh
+      - name: Read app version
+        id: metadata
+        run: |
+          release_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "字体检索.app/Contents/Info.plist")
+          echo "version=$release_version" >> "$GITHUB_OUTPUT"
       - name: Test cloud library and upload permissions
         run: '"字体检索.app/Contents/MacOS/FontName" --cloud-self-test'
+      - name: Test update discovery and version policy
+        run: '"字体检索.app/Contents/MacOS/FontName" --update-self-test'
       - name: Package app
         run: |
           mkdir -p release
           bash Tools/package-installer.sh
-          ditto -c -k --keepParent "字体检索.app" release/FontFinder-macOS-Universal-v1.9.zip
-          shasum -a 256 release/FontFinder-macOS-Universal-v1.9.pkg release/FontFinder-macOS-Universal-v1.9.zip > release/SHA256SUMS.txt
+          release_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "字体检索.app/Contents/Info.plist")
+          ditto -c -k --keepParent "字体检索.app" "release/FontFinder-macOS-Universal-v$release_version.zip"
+          python3 Tools/generate-update-manifest.py
+          (cd release && shasum -a 256 "FontFinder-macOS-Universal-v$release_version.pkg" > SHA256SUMS.txt)
       - name: Install PKG in Applications and verify payload
         run: |
-          sudo installer -pkg release/FontFinder-macOS-Universal-v1.9.pkg -target /
+          release_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "字体检索.app/Contents/Info.plist")
+          sudo installer -pkg "release/FontFinder-macOS-Universal-v$release_version.pkg" -target /
           python3 Tools/verify-installed-app.py
       - name: Test installed app
         run: '"/Applications/字体检索.app/Contents/MacOS/FontName" --self-test'
@@ -39,6 +51,30 @@ jobs:
         run: '"字体检索.app/Contents/MacOS/FontName" --capture "$PWD/release/app-preview.png"'
       - uses: actions/upload-artifact@v4
         with:
-          name: FontFinder-macOS-Universal-v1.9
+          name: FontFinder-macOS-Universal-v${{ steps.metadata.outputs.version }}
           path: release/
           retention-days: 30
+
+  publish:
+    if: github.repository == 'sudazz777/ZiTiJianSuo' && github.ref == 'refs/heads/main' && github.event_name != 'pull_request'
+    needs: build
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    concurrency:
+      group: font-finder-release
+      cancel-in-progress: false
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/download-artifact@v4
+        with:
+          name: FontFinder-macOS-Universal-v${{ needs.build.outputs.version }}
+          path: release
+      - name: Publish verified installer and update metadata to GitHub Releases
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+        run: bash Tools/publish-release.sh
