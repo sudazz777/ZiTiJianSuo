@@ -95,7 +95,8 @@ enum UpdateInstallationSelfTest {
             }
             check(relaunched == destination, "installation requests a relaunch of the exact destination path")
             let reported = try JSONSerialization.jsonObject(with: Data(contentsOf: acknowledgement)) as! [String: String]
-            check(reported["bundlePath"] == destination.path && reported["version"] == version,
+            let reportedPath = reported["bundlePath"].map { URL(fileURLWithPath: $0).resolvingSymlinksInPath().standardizedFileURL }
+            check(reportedPath == destination.resolvingSymlinksInPath().standardizedFileURL && reported["version"] == version,
                   "macOS Launch Services actually opens the replacement app at the expected version and path")
             let exitDeadline = Date().addingTimeInterval(6)
             while launchedApplication?.isTerminated == false && Date() < exitDeadline {
