@@ -25,11 +25,11 @@ jobs:
         run: |
           mkdir -p release
           bash Tools/package-installer.sh
-          ditto -c -k --keepParent "字体检索.app" release/FontFinder-macOS-Universal-v1.8.zip
-          shasum -a 256 release/FontFinder-macOS-Universal-v1.8.pkg release/FontFinder-macOS-Universal-v1.8.zip > release/SHA256SUMS.txt
+          ditto -c -k --keepParent "字体检索.app" release/FontFinder-macOS-Universal-v1.9.zip
+          shasum -a 256 release/FontFinder-macOS-Universal-v1.9.pkg release/FontFinder-macOS-Universal-v1.9.zip > release/SHA256SUMS.txt
       - name: Install PKG in Applications and verify payload
         run: |
-          sudo installer -pkg release/FontFinder-macOS-Universal-v1.8.pkg -target /
+          sudo installer -pkg release/FontFinder-macOS-Universal-v1.9.pkg -target /
           python3 Tools/verify-installed-app.py
       - name: Test installed app
         run: '"/Applications/字体检索.app/Contents/MacOS/FontName" --self-test'
@@ -39,6 +39,6 @@ jobs:
         run: '"字体检索.app/Contents/MacOS/FontName" --capture "$PWD/release/app-preview.png"'
       - uses: actions/upload-artifact@v4
         with:
-          name: FontFinder-macOS-Universal-v1.8
+          name: FontFinder-macOS-Universal-v1.9
           path: release/
           retention-days: 30
