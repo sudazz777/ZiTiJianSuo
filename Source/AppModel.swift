@@ -37,6 +37,7 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
     @Published var visible: [FontRecord] = []
     @Published var selection: String?
     @Published var loading = true
+    @Published var fontOperationInProgress = false
     @Published var toast: String?
     @Published var preview = "把灵感，写成日常。"
     @Published var size: Double = 26
@@ -136,11 +137,11 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
         var source = section == .recent ? recent.compactMap { byID[$0] } : fonts
         if section == .favorites { source = source.filter { favorites.contains($0.id) } }
         if section == .chinese { source = source.filter(\.supportsChinese) }
-        visible = sorted(source.filter { $0.matches(query, custom: custom[$0.id]) })
+        visible = sortedFonts(source.filter { $0.matches(query, custom: custom[$0.id]) })
         if !visible.contains(where: { $0.id == selection }) { selection = visible.first?.id }
     }
 
-    private func sorted(_ records: [FontRecord]) -> [FontRecord] {
+    func sortedFonts(_ records: [FontRecord]) -> [FontRecord] {
         guard sortOrder != .defaultOrder else { return records }
         let pinyin = sortOrder == .pinyinAZ || sortOrder == .pinyinZA
         let descending = sortOrder == .englishZA || sortOrder == .pinyinZA

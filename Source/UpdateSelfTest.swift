@@ -1,4 +1,5 @@
 import Foundation
+import CryptoKit
 
 enum UpdateSelfTest {
     @MainActor static func run() async {
@@ -34,6 +35,24 @@ enum UpdateSelfTest {
             }
             rejects("rejects oversized metadata") { _ = try AppUpdateRelease.decode(Data(repeating: 32, count: 65537)) }
             rejects("rejects malformed metadata") { _ = try AppUpdateRelease.decode(Data("<html>Error</html>".utf8)) }
+            var oversized = base; oversized["size"] = AppUpdateDownload.maximumSize + 1
+            rejects("rejects oversized installer metadata") { _ = try AppUpdateRelease.decode(JSONSerialization.data(withJSONObject: oversized)) }
+            check(AppUpdateDownload.allowed(URL(string: "https://release-assets.githubusercontent.com/file.dmg")), "allows GitHub HTTPS release asset redirects")
+            for address in ["http://github.com/file.dmg", "https://github.com.example.com/file.dmg", "https://user@github.com/file.dmg", "https://github.com:444/file.dmg", "https://example.com/file.dmg"] {
+                check(!AppUpdateDownload.allowed(URL(string: address)), "rejects untrusted download redirect \(address)")
+            }
+            let fixture = Data("verified installer bytes".utf8)
+            let digest = SHA256.hash(data: fixture).map { String(format: "%02x", $0) }.joined()
+            let package = AppUpdateRelease(schemaVersion: 1, version: "1.14", build: 15, releaseNotes: [], downloadURL: AppUpdateRelease.packageURL(version: "1.14"), sha256: digest, size: fixture.count)
+            let file = FileManager.default.temporaryDirectory.appendingPathComponent("FontFinder-Download-Test-\(UUID().uuidString).dmg")
+            defer { try? FileManager.default.removeItem(at: file) }
+            try fixture.write(to: file)
+            try AppUpdateDownload.verify(file, release: package)
+            check(true, "accepts exact installer bytes with matching size and SHA-256")
+            try Data(repeating: 0, count: fixture.count).write(to: file)
+            rejects("rejects same-size corrupted installer") { try AppUpdateDownload.verify(file, release: package) }
+            try Data([1]).write(to: file)
+            rejects("rejects truncated installer") { try AppUpdateDownload.verify(file, release: package) }
 
             let suite = "FontFinder.Updates.Test.\(UUID().uuidString)", defaults = UserDefaults(suiteName: suite)!
             defer { defaults.removePersistentDomain(forName: suite) }
@@ -64,6 +83,20 @@ enum UpdateSelfTest {
             CloudMockProtocol.handler = { _ in throw URLError(.notConnectedToInternet) }
             do { _ = try await client.latest(); check(false, "offline update check fails gracefully") }
             catch { check(true, "offline update check fails gracefully") }
+            let downloadConfig = URLSessionConfiguration.ephemeral
+            downloadConfig.protocolClasses = [CloudMockProtocol.self]
+            CloudMockProtocol.handler = { request in
+                guard request.url == package.downloadURL, request.value(forHTTPHeaderField: "Authorization") == nil else { throw UpdateError.invalidRelease }
+                return (200, fixture)
+            }
+            let downloaded = try await AppUpdateDownload.fetch(package, session: URLSession(configuration: downloadConfig)) { _ in }
+            defer { try? FileManager.default.removeItem(at: downloaded.deletingLastPathComponent()) }
+            check(try Data(contentsOf: downloaded) == fixture, "downloads and verifies a release to a private temporary file")
+            CloudMockProtocol.handler = { _ in (200, Data(repeating: 0, count: fixture.count)) }
+            do {
+                _ = try await AppUpdateDownload.fetch(package, session: URLSession(configuration: downloadConfig)) { _ in }
+                check(false, "download corruption fails before installation")
+            } catch { check(true, "download corruption fails before installation") }
             print("SUCCESS: \(checks) update checks passed")
         } catch { fputs("FAIL: unexpected update test error: \(error)\n", stderr); exit(1) }
     }

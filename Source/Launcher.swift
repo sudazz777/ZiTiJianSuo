@@ -27,12 +27,21 @@ import SwiftUI
         NSApp.activate(ignoringOtherApps: true)
         model.reload()
         if CommandLine.arguments.contains("--capture-management") { model.section = .management }
-        if !CommandLine.arguments.contains("--capture") {
+        let recovery = CommandLine.arguments.firstIndex(of: "--update-install-failed").flatMap { index in
+            index + 1 < CommandLine.arguments.count ? CommandLine.arguments[index + 1] : nil
+        }
+        if !CommandLine.arguments.contains("--capture"), recovery == nil {
+            updater.canInstall = { [weak self] in self?.model.fontOperationInProgress == false }
             updater.onCheckingChanged = { [weak self] checking in
-                self?.updateMenuItem?.title = checking ? "正在检查更新…" : "检查更新…"
+                self?.updateMenuItem?.title = checking ? (self?.updater.isUpdating == true ? "正在更新…" : "正在检查更新…") : "检查更新…"
                 self?.updateMenuItem?.isEnabled = !checking
             }
             updater.start()
+        }
+        if let recovery {
+            let alert = NSAlert(); alert.messageText = "自动更新未完成"
+            alert.informativeText = "\(recovery)\n\n已尝试恢复原版。可通过「检查更新」重试，或从 GitHub 下载 DMG 手动安装。"
+            alert.runModal()
         }
         if let index = CommandLine.arguments.firstIndex(of: "--capture"), index + 1 < CommandLine.arguments.count {
             let path = CommandLine.arguments[index + 1]
@@ -57,6 +66,15 @@ import SwiftUI
     }
 
     func applicationShouldTerminateAfterLastWindowClosed(_ sender: NSApplication) -> Bool { true }
+    func applicationShouldTerminate(_ sender: NSApplication) -> NSApplication.TerminateReply {
+        guard !model.fontOperationInProgress, !updater.isUpdating || updater.restarting else {
+            let alert = NSAlert(); alert.messageText = "请先完成当前操作"
+            alert.informativeText = model.fontOperationInProgress ? "字体文件正在处理中，完成后即可退出。" : "正在准备更新。要退出，请先在更新窗口取消更新。"
+            alert.runModal()
+            return .terminateCancel
+        }
+        return .terminateNow
+    }
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows: Bool) -> Bool {
         window.makeKeyAndOrderFront(nil)
         return true
@@ -133,7 +151,7 @@ import SwiftUI
     }
     @objc func about() {
         NSApp.orderFrontStandardAboutPanel(options: [
-            .applicationName: "字体检索 Font Finder", .applicationVersion: "1.13",
+            .applicationName: "字体检索 Font Finder", .applicationVersion: "1.14",
             .credits: NSAttributedString(string: "好字体，随手就能找到。\n本机字体检索 · 离线使用\n中文、拼音、英文搜索\nApple 芯片与 Intel 通用")
         ])
     }
@@ -141,6 +159,11 @@ import SwiftUI
 
 @main enum Launcher {
     @MainActor static func main() {
+        if let index = CommandLine.arguments.firstIndex(of: "--install-update-helper"), index + 1 < CommandLine.arguments.count {
+            exit(AppUpdateInstallation.runHelper(jobURL: URL(fileURLWithPath: CommandLine.arguments[index + 1])))
+        }
+        if CommandLine.arguments.contains("--installation-self-test") { UpdateInstallationSelfTest.run(); return }
+        if CommandLine.arguments.contains("--focus-self-test") { TextFocusSelfTest.run(); return }
         if CommandLine.arguments.contains("--self-test") { SelfTest.run(); return }
         if CommandLine.arguments.contains("--font-management-self-test") { FontManagementSelfTest.run(); return }
         if CommandLine.arguments.contains("--cloud-self-test") {

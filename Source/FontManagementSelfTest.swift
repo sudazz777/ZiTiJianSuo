@@ -51,6 +51,22 @@ enum FontManagementSelfTest {
             let sharedCards = LocalFontFamily.catalog([family, shared], files: sharedFiles)
             check(Set(sharedCards.map(\.id)) == Set([family.id, shared.id]), "management cards preserve the exact library family set")
             check(LocalFontFamily.selectedFiles(in: sharedCards, selected: [family.id, shared.id]).count == 1, "selecting families that share a file deletes that file only once")
+            let preferences = "FontManager-Sort-Test-\(UUID().uuidString)"
+            let defaults = UserDefaults(suiteName: preferences)!
+            defer { defaults.removePersistentDomain(forName: preferences) }
+            let appModel = AppModel(defaults: defaults)
+            appModel.fonts = [family, shared]; appModel.section = .all; appModel.recent = [shared.id]
+            let manager = FontManagementModel()
+            manager.refresh(appModel.fonts); manager.selected = [family.id]
+            let selectedPaths = manager.selectedFiles.map(\.id)
+            let agreesWithLibrary = FontSortOrder.allCases.allSatisfy { order in
+                appModel.sortOrder = order
+                return manager.visibleFamilies(appModel: appModel).map(\.id) == appModel.visible.map(\.id)
+            }
+            check(agreesWithLibrary, "all management sort modes agree with the library including its default catalog order")
+            check(manager.selected == [family.id] && manager.selectedFiles.map(\.id) == selectedPaths, "changing management sorting preserves multiselection and the exact deletion files")
+            appModel.query = "Shared"; manager.query = "Shared"; appModel.sortOrder = .englishZA
+            check(manager.visibleFamilies(appModel: appModel).map(\.id) == appModel.visible.map(\.id), "management search results retain the same chosen sorting as the library")
             let secondFile = root.appendingPathComponent("second.ttf")
             try Data("test font data".utf8).write(to: secondFile)
             let secondFace = FontFace(id: "Test-Second", family: "Test", englishFamily: "Test", chineseFamily: nil, style: "Bold", sourceURL: secondFile)

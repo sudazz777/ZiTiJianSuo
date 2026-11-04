@@ -41,7 +41,7 @@ struct AppUpdateRelease: Codable {
         guard data.count <= 64 * 1024 else { throw UpdateError.invalidRelease }
         let release = try JSONDecoder().decode(Self.self, from: data)
         _ = try UpdateVersion(release.version)
-        guard release.schemaVersion == 1, release.build > 0, release.size > 0,
+        guard release.schemaVersion == 1, release.build > 0, release.size > 0, release.size <= AppUpdateDownload.maximumSize,
               release.downloadURL == packageURL(version: release.version),
               release.sha256.count == 64, release.sha256.allSatisfy({ "0123456789abcdef".contains($0) }),
               release.releaseNotes.count <= 20, release.releaseNotes.allSatisfy({ $0.count <= 500 }) else { throw UpdateError.invalidRelease }
@@ -92,6 +92,11 @@ struct UpdateCheckPolicy {
     private var pendingRelease: AppUpdateRelease?
     private var checking = false
     private var manualRequested = false
+    private var installationTask: Task<Void, Never>?
+    private var progressPanel: UpdateProgressPanel?
+    private(set) var isUpdating = false
+    private(set) var restarting = false
+    var canInstall: () -> Bool = { true }
     var onCheckingChanged: ((Bool) -> Void)?
 
     init(defaults: UserDefaults = .standard, client: AppUpdateClient = AppUpdateClient()) {
@@ -104,7 +109,7 @@ struct UpdateCheckPolicy {
         started = true
         check(manual: false, startup: true)
     }
-    func stop() { task?.cancel(); task = nil; started = false }
+    func stop() { task?.cancel(); installationTask?.cancel(); task = nil; started = false }
     func didBecomeActive() {
         if let release = pendingRelease {
             pendingRelease = nil
@@ -112,6 +117,7 @@ struct UpdateCheckPolicy {
         }
     }
     func check(manual: Bool, startup: Bool = false) {
+        guard !isUpdating else { return }
         if checking { manualRequested = manualRequested || manual; return }
         guard policy.shouldCheck(manual: manual, startup: startup) else { return }
         checking = true; manualRequested = manual; onCheckingChanged?(true)
@@ -143,16 +149,76 @@ struct UpdateCheckPolicy {
         let alert = NSAlert()
         alert.messageText = "字体检索有新版本 v\(release.version)"
         let notes = release.releaseNotes.prefix(8).map { "• \($0)" }.joined(separator: "\n")
-        alert.informativeText = "当前版本：\(version)\n\n\(notes)\n\n打开下载的 DMG，将“字体检索”拖入“应用程序”文件夹，替换旧版。"
-        alert.addButton(withTitle: "下载更新")
+        alert.informativeText = "当前版本：\(version)\n\n\(notes)\n\n软件将自动下载并校验更新，然后退出、安装并重新打开。下载期间可以取消。"
+        alert.addButton(withTitle: "更新并重启")
         alert.addButton(withTitle: "稍后提醒")
         alert.addButton(withTitle: "跳过此版本")
         switch alert.runModal() {
         case .alertFirstButtonReturn:
-            if !NSWorkspace.shared.open(release.downloadURL) { message("无法打开下载", text: "请前往 GitHub 仓库的 Releases 下载最新版安装包。") }
+            install(release)
         case .alertThirdButtonReturn: policy.skip(release)
         default: break
         }
+    }
+
+    private func install(_ release: AppUpdateRelease) {
+        guard !isUpdating else { return }
+        guard canInstall() else {
+            message("请先等待字体处理完成", text: "字体批量操作完成后，再检查更新即可。")
+            return
+        }
+        isUpdating = true; onCheckingChanged?(true)
+        let panel = UpdateProgressPanel(); progressPanel = panel
+        panel.onCancel = { [weak self] in self?.installationTask?.cancel(); self?.progressPanel?.cancelRequested() }
+        panel.show()
+        installationTask = Task { [weak self] in
+            guard let self else { return }
+            var download: URL?
+            var prepared: PreparedAppUpdate?
+            var handedOff = false
+            defer {
+                if !handedOff, let prepared { AppUpdateInstallation.discard(prepared) }
+                if let download { try? FileManager.default.removeItem(at: download.deletingLastPathComponent()) }
+                progressPanel?.close(); progressPanel = nil
+                if !handedOff { isUpdating = false; restarting = false; onCheckingChanged?(false) }
+            }
+            do {
+                let package = try await AppUpdateDownload.fetch(release) { [weak self] fraction in
+                    Task { @MainActor in self?.progressPanel?.progress(fraction) }
+                }
+                download = package
+                try Task.checkCancellation()
+                progressPanel?.preparing()
+                let ready = try await Task.detached(priority: .userInitiated) {
+                    try AppUpdateInstallation.prepare(dmg: package, release: release)
+                }.value
+                prepared = ready
+                try Task.checkCancellation()
+                guard canInstall() else { throw NSError(domain: "FontFinder.Update", code: 1, userInfo: [NSLocalizedDescriptionKey: "字体仍在处理中，请完成后再重试更新。"] ) }
+                progressPanel?.restarting()
+                try await Task.detached(priority: .userInitiated) { try AppUpdateInstallation.launch(ready) }.value
+                try Task.checkCancellation()
+                guard canInstall() else { throw NSError(domain: "FontFinder.Update", code: 2, userInfo: [NSLocalizedDescriptionKey: "字体仍在处理中，已取消重启。"] ) }
+                try AppUpdateInstallation.commit(ready)
+                handedOff = true; restarting = true
+                try? FileManager.default.removeItem(at: package.deletingLastPathComponent())
+                download = nil
+                progressPanel?.close()
+                NSApp.terminate(nil)
+            } catch {
+                progressPanel?.close()
+                if !Task.isCancelled { installFailed(release, reason: error.localizedDescription) }
+            }
+        }
+    }
+
+    private func installFailed(_ release: AppUpdateRelease, reason: String) {
+        let alert = NSAlert()
+        alert.messageText = "自动更新未完成"
+        alert.informativeText = "\(reason)\n\n当前软件保持原样。可以稍后重试，或手动下载安装。"
+        alert.addButton(withTitle: "关闭")
+        alert.addButton(withTitle: "手动下载安装包")
+        if alert.runModal() == .alertSecondButtonReturn { NSWorkspace.shared.open(release.downloadURL) }
     }
     private func message(_ title: String, text: String) {
         let alert = NSAlert(); alert.messageText = title; alert.informativeText = text; alert.runModal()

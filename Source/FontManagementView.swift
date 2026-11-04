@@ -12,6 +12,15 @@ import SwiftUI
     @Published var results: [FontTrashResult] = []
     let store = FontTrashStore()
     var selectedFiles: [LocalFontFile] { LocalFontFamily.selectedFiles(in: families, selected: selected) }
+    func visibleFamilies(appModel: AppModel) -> [LocalFontFamily] {
+        let byID = Dictionary(uniqueKeysWithValues: families.map { ($0.id, $0) })
+        let matching = appModel.fonts.compactMap { byID[$0.id] }.filter { item in
+            (!onlyDeletable || item.canTrash) &&
+            (item.font.matches(query, custom: appModel.custom[item.id]) ||
+             item.files.contains { $0.url.path.localizedCaseInsensitiveContains(query) })
+        }
+        return appModel.sortedFonts(matching.map(\.font)).compactMap { byID[$0.id] }
+    }
     func refresh(_ fonts: [FontRecord]) {
         guard !isProcessing else { return }
         files = LocalFontFile.catalog(fonts, store: store)
@@ -45,8 +54,10 @@ import SwiftUI
         alert.buttons[1].hasDestructiveAction = true
         guard alert.runModal() == .alertSecondButtonReturn else { return }
 
-        isProcessing = true; results = []; status = "正在处理 \(snapshots.count) 个字体文件…"
+        isProcessing = true; appModel.fontOperationInProgress = true
+        results = []; status = "正在处理 \(snapshots.count) 个字体文件…"
         Task {
+            defer { isProcessing = false; appModel.fontOperationInProgress = false }
             let store = self.store
             let batch = await Task.detached(priority: .userInitiated) { snapshots.map(store.trash) }.value
             results = batch
@@ -56,7 +67,6 @@ import SwiftUI
             families.removeAll { $0.fileIDs.isSubset(of: removed) }
             let failed = batch.count - removed.count
             status = "已移到废纸篓 \(removed.count) 个文件" + (failed > 0 ? "；\(failed) 个未完成，文件已保留，请查看结果。" : "。")
-            isProcessing = false
             appModel.reload()
         }
     }
@@ -73,13 +83,7 @@ struct FontManagementView: View {
     @ObservedObject var manager: FontManagementModel
     @FocusState private var searchFocused: Bool
     private let columns = [GridItem(.adaptive(minimum: 260), spacing: 14, alignment: .top)]
-    private var visible: [LocalFontFamily] {
-        manager.families.filter { item in
-            (!manager.onlyDeletable || item.canTrash) &&
-            (item.font.matches(manager.query, custom: appModel.custom[item.id]) ||
-             item.files.contains { $0.url.path.localizedCaseInsensitiveContains(manager.query) })
-        }
-    }
+    private var visible: [LocalFontFamily] { manager.visibleFamilies(appModel: appModel) }
     var body: some View {
         VStack(alignment: .leading, spacing: 14) {
             HStack {
@@ -89,6 +93,7 @@ struct FontManagementView: View {
                         .font(.system(size: 11)).foregroundColor(Palette.muted)
                 }
                 Spacer()
+                sortMenu
                 Button("刷新") { appModel.reload() }.buttonStyle(QuietButton()).disabled(manager.isProcessing || appModel.loading)
                 Button("打开废纸篓") { manager.openTrash() }.buttonStyle(QuietButton())
             }
@@ -147,6 +152,32 @@ struct FontManagementView: View {
             }
         }.padding(24).background(Palette.canvas)
             .onReceive(NotificationCenter.default.publisher(for: .focusFontSearch)) { _ in searchFocused = true }
+            .onReceive(NotificationCenter.default.publisher(for: .dismissTextFocus)) { _ in searchFocused = false }
+    }
+
+    private var sortMenu: some View {
+        Menu {
+            ForEach(FontSortOrder.allCases) { order in
+                Button { appModel.sortOrder = order } label: {
+                    if appModel.sortOrder == order {
+                        Label(order.title, systemImage: "checkmark")
+                    } else {
+                        Text(order.title)
+                    }
+                }
+            }
+        } label: {
+            HStack(spacing: 7) {
+                Image(systemName: "arrow.up.arrow.down").font(.system(size: 11))
+                Text(appModel.sortOrder.title).font(.system(size: 11, weight: .medium))
+                Image(systemName: "chevron.down").font(.system(size: 8, weight: .semibold))
+            }.foregroundColor(Palette.green).padding(.horizontal, 12).frame(height: 32)
+                .background(Color.white).clipShape(RoundedRectangle(cornerRadius: 8))
+                .overlay(RoundedRectangle(cornerRadius: 8).stroke(Palette.line, lineWidth: 1))
+        }.menuStyle(.borderlessButton).menuIndicator(.hidden).fixedSize()
+            .disabled(manager.isProcessing || appModel.loading)
+            .help("选择字体排序方式，与全部字体共用并保存设置")
+            .accessibilityLabel("排序方式：\(appModel.sortOrder.title)")
     }
 }
 

@@ -46,6 +46,7 @@ struct ContentView: View {
             } }
         }
         .foregroundColor(Palette.ink).background(Palette.canvas)
+        .background(DismissTextFocusOnClick { searchFocused = false })
         .preferredColorScheme(.light)
         .overlay(alignment: .bottom) {
             if let toast = model.toast {
@@ -97,7 +98,6 @@ struct ContentView: View {
             }
             Spacer()
             VStack(alignment: .leading, spacing: 12) {
-                Image(systemName: "character.cursor.ibeam").font(.system(size: 25, weight: .light)).foregroundColor(Palette.green)
                 Text("好字体，\n随手就能找到。").font(.system(size: 16, weight: .medium)).lineSpacing(5)
                 Text("中文 · 拼音 · English\n一个名字，多种找法。")
                     .font(.system(size: 10)).foregroundColor(Palette.muted).lineSpacing(5)
@@ -192,7 +192,7 @@ struct ContentView: View {
             HStack {
                 Text("字体册已启用字体 · 复制家族名称").font(.system(size: 9)).foregroundColor(Palette.muted)
                 Spacer()
-                Text("v1.13").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
+                Text("v1.14").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
             }.padding(.horizontal, 25).frame(height: 35)
         }
     }

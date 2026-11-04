@@ -68,6 +68,12 @@ jobs:
         run: '"/Applications/字体检索.app/Contents/MacOS/FontName" --self-test'
       - name: Test real font Trash operation and failure rollback
         run: '"/Applications/字体检索.app/Contents/MacOS/FontName" --font-management-self-test "$PWD/fonts/files"'
+      - name: Test automatic update installation and rollback in isolated apps
+        run: |
+          release_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "字体检索.app/Contents/Info.plist")
+          "/Applications/字体检索.app/Contents/MacOS/FontName" --installation-self-test "$PWD/release/FontFinder-macOS-Universal-v$release_version.dmg"
+      - name: Test click outside text fields clears their focus
+        run: '"/Applications/字体检索.app/Contents/MacOS/FontName" --focus-self-test'
       - name: Capture app preview
         timeout-minutes: 1
         continue-on-error: true
