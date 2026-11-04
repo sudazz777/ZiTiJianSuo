@@ -87,6 +87,7 @@ struct ContentView: View {
                             .lineLimit(1).minimumScaleFactor(0.85).layoutPriority(1)
                         Spacer(minLength: 0)
                         Text(count(section)).font(.system(size: 10, design: .monospaced)).opacity(0.7)
+                            .fixedSize(horizontal: true, vertical: false)
                     }.padding(.horizontal, 12).frame(maxWidth: .infinity, minHeight: 43)
                     .foregroundColor(model.section == section ? Palette.green : Palette.muted)
                     .background(model.section == section ? Palette.mint : Color.clear)

@@ -12,6 +12,26 @@ permissions:
   contents: read
 
 jobs:
+  supersede:
+    if: github.repository == 'sudazz777/ZiTiJianSuo' && github.ref == 'refs/heads/main' && github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    permissions:
+      actions: write
+    steps:
+      - name: Cancel older builds before they publish superseded installers
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          CURRENT_RUN_ID: ${{ github.run_id }}
+        run: |
+          gh run list --workflow macos.yml --branch main --event push --limit 30 \
+            --json databaseId,status --jq ".[] | select(.databaseId < $CURRENT_RUN_ID and .status != \"completed\") | .databaseId" \
+            > /tmp/superseded-font-finder-runs
+          while IFS= read -r older_run; do
+            gh run cancel "$older_run" || echo "Older run $older_run already finished."
+          done < /tmp/superseded-font-finder-runs
+
   build:
     runs-on: macos-14
     timeout-minutes: 20
