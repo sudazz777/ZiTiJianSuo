@@ -3,9 +3,9 @@ import SwiftUI
 import CoreText
 
 enum LibrarySection: String, CaseIterable {
-    case all = "全部字体", chinese = "中文字体", favorites = "我的收藏", recent = "最近复制"
+    case all = "全部字体", chinese = "中文字体", favorites = "我的收藏", recent = "最近复制", management = "本地字体管理"
     var icon: String {
-        switch self { case .all: return "square.grid.2x2"; case .chinese: return "character.book.closed"; case .favorites: return "star"; case .recent: return "clock" }
+        switch self { case .all: return "square.grid.2x2"; case .chinese: return "character.book.closed"; case .favorites: return "star"; case .recent: return "clock"; case .management: return "folder.badge.gearshape" }
     }
 }
 

@@ -26,6 +26,7 @@ import SwiftUI
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         model.reload()
+        if CommandLine.arguments.contains("--capture-management") { model.section = .management }
         if !CommandLine.arguments.contains("--capture") {
             updater.onCheckingChanged = { [weak self] checking in
                 self?.updateMenuItem?.title = checking ? "正在检查更新…" : "检查更新…"
@@ -119,9 +120,9 @@ import SwiftUI
     @objc func focusSearch() { NotificationCenter.default.post(name: .focusFontSearch, object: nil) }
     @objc func refresh() { model.reload() }
     @objc func checkUpdates() { updater.check(manual: true) }
-    @objc func favorite() { if let f = model.selected { model.toggleFavorite(f.id) } }
+    @objc func favorite() { if model.section != .management, let f = model.selected { model.toggleFavorite(f.id) } }
     @objc func copyName(_ sender: NSMenuItem) {
-        guard let font = model.selected else { return }
+        guard model.section != .management, let font = model.selected else { return }
         switch sender.tag {
         case 0:
             if let c = model.chineseName(font) { model.copy(c, font: font, label: "中文名") }
@@ -141,6 +142,7 @@ import SwiftUI
 @main enum Launcher {
     @MainActor static func main() {
         if CommandLine.arguments.contains("--self-test") { SelfTest.run(); return }
+        if CommandLine.arguments.contains("--font-management-self-test") { FontManagementSelfTest.run(); return }
         if CommandLine.arguments.contains("--cloud-self-test") {
             Task { @MainActor in await CloudSelfTest.run(); exit(0) }
             RunLoop.main.run(); return

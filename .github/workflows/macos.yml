@@ -46,10 +46,16 @@ jobs:
           bash Tools/verify-dmg.sh
       - name: Test installed app
         run: '"/Applications/字体检索.app/Contents/MacOS/FontName" --self-test'
+      - name: Test real font Trash operation and failure rollback
+        run: '"/Applications/字体检索.app/Contents/MacOS/FontName" --font-management-self-test "$PWD/fonts/files"'
       - name: Capture app preview
         timeout-minutes: 1
         continue-on-error: true
         run: '"字体检索.app/Contents/MacOS/FontName" --capture "$PWD/release/app-preview.png"'
+      - name: Capture local font management preview
+        timeout-minutes: 1
+        continue-on-error: true
+        run: '"字体检索.app/Contents/MacOS/FontName" --capture "$PWD/release/font-management-preview.png" --capture-management'
       - uses: actions/upload-artifact@v4
         with:
           name: FontFinder-macOS-Universal-v${{ steps.metadata.outputs.version }}

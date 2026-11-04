@@ -28,11 +28,14 @@ struct QuietButton: ButtonStyle {
 
 struct ContentView: View {
     @ObservedObject var model: AppModel
+    @StateObject private var fontManager = FontManagementModel()
     @FocusState private var searchFocused: Bool
     var body: some View {
         HStack(spacing: 0) {
             sidebar.frame(width: 200)
-            VStack(spacing: 0) {
+            if model.section == .management {
+                FontManagementView(appModel: model, manager: fontManager).frame(maxWidth: .infinity, maxHeight: .infinity)
+            } else { VStack(spacing: 0) {
                 topbar
                 Rectangle().fill(Palette.line).frame(height: 1)
                 HStack(spacing: 0) {
@@ -40,7 +43,7 @@ struct ContentView: View {
                     Rectangle().fill(Palette.line).frame(width: 1)
                     inspector.frame(width: 330)
                 }
-            }
+            } }
         }
         .foregroundColor(Palette.ink).background(Palette.canvas)
         .preferredColorScheme(.light)
@@ -61,7 +64,8 @@ struct ContentView: View {
         .sheet(isPresented: $model.showEditor) {
             if let font = model.selected { NameEditor(model: model, font: font) }
         }
-        .onReceive(NotificationCenter.default.publisher(for: .focusFontSearch)) { _ in searchFocused = true }
+        .onReceive(NotificationCenter.default.publisher(for: .focusFontSearch)) { _ in if model.section != .management { searchFocused = true } }
+        .onReceive(model.$fonts) { fontManager.refresh($0) }
     }
 
     private var sidebar: some View {
@@ -111,6 +115,7 @@ struct ContentView: View {
         case .chinese: return "\(model.fonts.filter(\.supportsChinese).count)"
         case .favorites: return "\(model.fonts.filter { model.favorites.contains($0.id) }.count)"
         case .recent: return "\(model.fonts.filter { model.recent.contains($0.id) }.count)"
+        case .management: return "\(fontManager.files.count)"
         }
     }
 
