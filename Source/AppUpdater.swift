@@ -75,9 +75,9 @@ struct AppUpdateClient {
 
 struct UpdateCheckPolicy {
     let defaults: UserDefaults
-    static let interval: TimeInterval = 24 * 60 * 60
-    func isDue(manual: Bool, now: Date) -> Bool {
-        if manual { return true }
+    static let interval: TimeInterval = 60 * 60
+    func isDue(manual: Bool, startup: Bool = false, now: Date) -> Bool {
+        if manual || startup { return true }
         guard let last = defaults.object(forKey: "updates.lastAttempt") as? Date else { return true }
         return now < last || now.timeIntervalSince(last) >= Self.interval
     }
@@ -111,7 +111,7 @@ struct UpdateCheckPolicy {
             Task { @MainActor [weak self] in self?.check(manual: false) }
         }
         timer?.tolerance = 300
-        check(manual: false)
+        check(manual: false, startup: true)
     }
     func stop() { timer?.invalidate(); timer = nil; task?.cancel() }
     func didBecomeActive() {
@@ -121,9 +121,9 @@ struct UpdateCheckPolicy {
         }
         check(manual: false)
     }
-    func check(manual: Bool) {
+    func check(manual: Bool, startup: Bool = false) {
         if checking { manualRequested = manualRequested || manual; return }
-        guard policy.isDue(manual: manual, now: Date()) else { return }
+        guard policy.isDue(manual: manual, startup: startup, now: Date()) else { return }
         checking = true; manualRequested = manual; onCheckingChanged?(true)
         policy.recordAttempt(now: Date())
         task = Task { [weak self] in
