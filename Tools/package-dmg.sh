@@ -11,6 +11,8 @@ codesign --verify --deep --strict "$APP"
 ditto "$APP" "$staging/contents/字体检索.app"
 ln -s /Applications "$staging/contents/应用程序"
 cp "$ROOT/AppIcon.icns" "$staging/contents/.VolumeIcon.icns"
+layout_python="${FONTFINDER_LAYOUT_PYTHON:-$ROOT/.build/dmg-layout/bin/python}"
+"$layout_python" "$ROOT/Tools/dmg-layout.py" "$staging/contents"
 hdiutil create -volname "字体检索 v$release_version" -srcfolder "$staging/contents" \
   -fs HFS+ -format UDZO -ov "$disk_image"
 hdiutil verify "$disk_image"

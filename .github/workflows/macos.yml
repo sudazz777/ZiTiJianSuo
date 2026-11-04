@@ -30,6 +30,10 @@ jobs:
         run: '"字体检索.app/Contents/MacOS/FontName" --cloud-self-test'
       - name: Test update discovery and version policy
         run: '"字体检索.app/Contents/MacOS/FontName" --update-self-test'
+      - name: Prepare Finder layout tooling
+        run: |
+          python3 -m venv .build/dmg-layout
+          .build/dmg-layout/bin/python -m pip install --only-binary=:all: --require-hashes -r Tools/dmg-layout-requirements.txt
       - name: Package app
         run: |
           mkdir -p release
