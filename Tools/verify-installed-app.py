@@ -18,6 +18,6 @@ installed_files = {p.relative_to(installed) for p in installed.rglob('*') if p.i
 assert source_files == installed_files, 'Installed bundle contents differ'
 for relative in source_files:
     assert hashlib.sha256((source / relative).read_bytes()).digest() == hashlib.sha256((installed / relative).read_bytes()).digest(), f'Installed file differs: {relative}'
-subprocess.run(['xcrun', 'lipo', '-verify_arch', 'arm64', 'x86_64', str(installed / 'Contents/MacOS/FontName')], check=True)
+subprocess.run(['xcrun', 'lipo', str(installed / 'Contents/MacOS/FontName'), '-verify_arch', 'arm64', 'x86_64'], check=True)
 subprocess.run(['codesign', '--verify', '--deep', '--strict', str(installed)], check=True)
 print('SUCCESS: DMG app was copied intact to /Applications with its code signature preserved')
