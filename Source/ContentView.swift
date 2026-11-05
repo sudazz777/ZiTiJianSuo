@@ -217,7 +217,7 @@ struct ContentView: View {
             HStack {
                 Text("字体册已启用字体 · 复制家族名称").font(.system(size: 9)).foregroundColor(Palette.muted)
                 Spacer()
-                Text("v1.17").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
+                Text("v1.18").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
             }.padding(.horizontal, 25).frame(height: 35)
         }
     }
@@ -302,22 +302,26 @@ struct FontLayoutToggle: View {
     var forceGrid = false
     private var showsGrid: Bool { grid || forceGrid }
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 0) {
             Button { grid = false } label: {
                 Image(systemName: "list.bullet").frame(width: 28, height: 28)
                     .foregroundColor(!showsGrid ? .white : Palette.muted)
                     .background(!showsGrid ? Palette.green : Color.clear)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .padding(.horizontal, 2).padding(.vertical, 3)
+                    .contentShape(Rectangle())
             }.help("列表显示").accessibilityLabel("列表显示").accessibilityValue(!showsGrid ? "已选择" : "未选择")
             Button { grid = true } label: {
                 Image(systemName: "square.grid.2x2").frame(width: 28, height: 28)
                     .foregroundColor(showsGrid ? .white : Palette.muted)
                     .background(showsGrid ? Palette.green : Color.clear)
                     .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .padding(.horizontal, 2).padding(.vertical, 3)
+                    .contentShape(Rectangle())
             }.help("网格显示：一行多个字体").accessibilityLabel("网格显示").accessibilityValue(showsGrid ? "已选择" : "未选择")
-        }.font(.system(size: 12)).buttonStyle(.plain).padding(3)
+        }.font(.system(size: 12)).buttonStyle(.plain)
             .background(Color.white).clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Palette.line, lineWidth: 1)).fixedSize()
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Palette.line, lineWidth: 1).allowsHitTesting(false)).fixedSize()
     }
 
 }
