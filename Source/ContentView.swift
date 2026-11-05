@@ -12,6 +12,7 @@ enum Palette {
     static let line = Color(red: 0.88, green: 0.89, blue: 0.86)
     static let muted = Color(red: 0.46, green: 0.50, blue: 0.46)
     static let mint = Color(red: 0.91, green: 0.95, blue: 0.91)
+    static let sidebarSelection = Color(red: 0.79, green: 0.87, blue: 0.82)
 }
 
 struct QuietButton: ButtonStyle {
@@ -30,13 +31,30 @@ struct ContentView: View {
     @ObservedObject var model: AppModel
     @StateObject private var fontManager = FontManagementModel()
     @AppStorage("allFonts.gridView") private var allFontsGrid = false
+    @AppStorage("chineseFonts.gridView") private var chineseFontsGrid = false
+    @AppStorage("favoriteFonts.gridView") private var favoriteFontsGrid = false
+    @AppStorage("recentFonts.gridView") private var recentFontsGrid = false
+    @AppStorage("managedFonts.gridView") private var managedFontsGrid = true
     @FocusState private var searchFocused: Bool
-    private var showsGrid: Bool { model.section == .all && (allFontsGrid || CommandLine.arguments.contains("--capture-grid")) }
+    private var captureGrid: Bool { CommandLine.arguments.contains("--capture-grid") }
+    private var showsGrid: Bool { sectionGrid.wrappedValue || captureGrid }
+    private var sectionGrid: Binding<Bool> {
+        switch model.section {
+        case .all: return $allFontsGrid
+        case .chinese: return $chineseFontsGrid
+        case .favorites: return $favoriteFontsGrid
+        case .recent: return $recentFontsGrid
+        case .management: return $managedFontsGrid
+        }
+    }
+    private var managementLayout: Binding<Bool> {
+        CommandLine.arguments.contains("--capture-management-list") ? .constant(false) : $managedFontsGrid
+    }
     var body: some View {
         HStack(spacing: 0) {
             sidebar.frame(width: 200)
             if model.section == .management {
-                FontManagementView(appModel: model, manager: fontManager).frame(maxWidth: .infinity, maxHeight: .infinity)
+                FontManagementView(appModel: model, manager: fontManager, gridLayout: managementLayout).frame(maxWidth: .infinity, maxHeight: .infinity)
             } else { VStack(spacing: 0) {
                 topbar
                 Rectangle().fill(Palette.line).frame(height: 1)
@@ -64,9 +82,6 @@ struct ContentView: View {
                 .transition(.move(edge: .bottom).combined(with: .opacity))
             }
         }
-        .sheet(isPresented: $model.showEditor) {
-            if let font = model.selected { NameEditor(model: model, font: font) }
-        }
         .onReceive(NotificationCenter.default.publisher(for: .focusFontSearch)) { _ in if model.section != .management { searchFocused = true } }
         .onReceive(model.$fonts) { fontManager.refresh($0) }
     }
@@ -92,9 +107,10 @@ struct ContentView: View {
                         Text(count(section)).font(.system(size: 10, design: .monospaced)).opacity(model.section == section ? 0.85 : 0.7)
                             .fixedSize(horizontal: true, vertical: false)
                     }.padding(.horizontal, 12).frame(maxWidth: .infinity, minHeight: 43)
-                    .foregroundColor(model.section == section ? Color.white : Palette.muted)
-                    .background(model.section == section ? Palette.green : Color.clear)
+                    .foregroundColor(model.section == section ? Palette.green : Palette.muted)
+                    .background(model.section == section ? Palette.sidebarSelection : Color.clear)
                     .clipShape(RoundedRectangle(cornerRadius: 9))
+                    .overlay(RoundedRectangle(cornerRadius: 9).stroke(model.section == section ? Palette.green.opacity(0.18) : Color.clear, lineWidth: 1))
                     .contentShape(Rectangle())
                 }.buttonStyle(.plain).padding(.bottom, 5)
             }
@@ -150,7 +166,7 @@ struct ContentView: View {
                         .font(.system(size: 11)).foregroundColor(Palette.muted).lineLimit(1).minimumScaleFactor(0.85)
                 }
                 Spacer()
-                if model.section == .all { layoutToggle }
+                FontLayoutToggle(grid: sectionGrid, forceGrid: captureGrid)
                 Menu {
                     ForEach(FontSortOrder.allCases) { order in
                         Button { model.sortOrder = order } label: {
@@ -180,7 +196,7 @@ struct ContentView: View {
                 VStack(spacing: 13) {
                     Image(systemName: model.section == .favorites ? "star" : "magnifyingglass").font(.system(size: 32, weight: .light)).foregroundColor(Palette.green)
                     Text(model.query.isEmpty ? emptyText : "没有找到匹配字体").font(.system(size: 16, weight: .medium))
-                    Text(model.query.isEmpty ? "选择字体后，点击星标或复制名称。" : "试试中文、拼音、拼音首字母或英文名称。\n也可以为字体添加自己的别名。")
+                    Text(model.query.isEmpty ? "选择字体后，点击星标或复制名称。" : "试试中文、拼音、拼音首字母或英文名称。")
                         .font(.system(size: 11)).foregroundColor(Palette.muted).multilineTextAlignment(.center).lineSpacing(5)
                     if !model.query.isEmpty { Button("清空搜索") { model.query = "" }.buttonStyle(QuietButton()) }
                 }.frame(maxWidth: .infinity)
@@ -201,28 +217,9 @@ struct ContentView: View {
             HStack {
                 Text("字体册已启用字体 · 复制家族名称").font(.system(size: 9)).foregroundColor(Palette.muted)
                 Spacer()
-                Text("v1.16").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
+                Text("v1.17").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
             }.padding(.horizontal, 25).frame(height: 35)
         }
-    }
-
-    private var layoutToggle: some View {
-        HStack(spacing: 2) {
-            Button { allFontsGrid = false } label: {
-                Image(systemName: "list.bullet").frame(width: 28, height: 28)
-                    .foregroundColor(!showsGrid ? .white : Palette.muted)
-                    .background(!showsGrid ? Palette.green : Color.clear)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-            }.help("列表显示").accessibilityLabel("列表显示").accessibilityValue(!showsGrid ? "已选择" : "未选择")
-            Button { allFontsGrid = true } label: {
-                Image(systemName: "square.grid.2x2").frame(width: 28, height: 28)
-                    .foregroundColor(showsGrid ? .white : Palette.muted)
-                    .background(showsGrid ? Palette.green : Color.clear)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-            }.help("网格显示：一行多个字体").accessibilityLabel("网格显示").accessibilityValue(showsGrid ? "已选择" : "未选择")
-        }.font(.system(size: 12)).buttonStyle(.plain).padding(3)
-            .background(Color.white).clipShape(RoundedRectangle(cornerRadius: 8))
-            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Palette.line, lineWidth: 1)).fixedSize()
     }
 
     private var emptyText: String { model.section == .favorites ? "把喜欢的字体收藏在这里" : "这里还没有字体记录" }
@@ -282,9 +279,6 @@ struct ContentView: View {
                             model.copy(model.englishName(font), font: font, label: "英文名")
                         }
                     }
-                    Button { model.showEditor = true } label: {
-                        HStack(spacing: 6) { Image(systemName: "pencil.line"); Text("编辑中文 / 英文别名") }.font(.system(size: 11))
-                    }.buttonStyle(.plain).foregroundColor(Palette.green)
                     Text("复制的是名称文字。其他电脑需安装同一字体，才可使用相同字形。")
                         .font(.system(size: 9)).foregroundColor(Palette.muted).lineSpacing(4).fixedSize(horizontal: false, vertical: true)
                 }.padding(23)
@@ -301,6 +295,31 @@ struct ContentView: View {
         Text(text).font(.system(size: 9, weight: .medium)).foregroundColor(Palette.green)
             .padding(.horizontal, 8).padding(.vertical, 4).background(Palette.mint).clipShape(Capsule())
     }
+}
+
+struct FontLayoutToggle: View {
+    @Binding var grid: Bool
+    var forceGrid = false
+    private var showsGrid: Bool { grid || forceGrid }
+    var body: some View {
+        HStack(spacing: 2) {
+            Button { grid = false } label: {
+                Image(systemName: "list.bullet").frame(width: 28, height: 28)
+                    .foregroundColor(!showsGrid ? .white : Palette.muted)
+                    .background(!showsGrid ? Palette.green : Color.clear)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }.help("列表显示").accessibilityLabel("列表显示").accessibilityValue(!showsGrid ? "已选择" : "未选择")
+            Button { grid = true } label: {
+                Image(systemName: "square.grid.2x2").frame(width: 28, height: 28)
+                    .foregroundColor(showsGrid ? .white : Palette.muted)
+                    .background(showsGrid ? Palette.green : Color.clear)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }.help("网格显示：一行多个字体").accessibilityLabel("网格显示").accessibilityValue(showsGrid ? "已选择" : "未选择")
+        }.font(.system(size: 12)).buttonStyle(.plain).padding(3)
+            .background(Color.white).clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Palette.line, lineWidth: 1)).fixedSize()
+    }
+
 }
 
 struct FontRow: View {
@@ -336,7 +355,7 @@ struct FontRow: View {
             HStack(spacing: 6) {
                 Button("复制中文") { if let value = model.chineseName(font) { model.copy(value, font: font, label: "中文名") } }
                     .buttonStyle(QuietButton()).disabled(model.chineseName(font) == nil).opacity(model.chineseName(font) == nil ? 0.4 : 1)
-                    .help(model.chineseName(font) ?? "未提供中文名，可在详情中添加别名")
+                    .help(model.chineseName(font) ?? "字体未提供中文名")
                 Button("复制英文") { model.copy(model.englishName(font), font: font, label: "英文名") }.buttonStyle(QuietButton())
                 Spacer(minLength: 0)
                 Button { model.revealFontFile(font) } label: {
@@ -376,37 +395,7 @@ struct CopyNameCard: View {
                 Image(systemName: "doc.on.doc").font(.system(size: 12)).foregroundColor(Palette.green).opacity(value == nil ? 0.3 : 1)
             }.padding(12).frame(maxWidth: .infinity, alignment: .leading).background(Color.white)
                 .clipShape(RoundedRectangle(cornerRadius: 9)).overlay(RoundedRectangle(cornerRadius: 9).stroke(Palette.line, lineWidth: 1))
-        }.buttonStyle(.plain).disabled(value == nil).help(value.map { "点击复制：\($0)" } ?? "可添加自定义中文别名")
-    }
-}
-
-struct NameEditor: View {
-    @ObservedObject var model: AppModel
-    let font: FontRecord
-    @Environment(\.dismiss) private var dismiss
-    @ViewState private var chinese = ""
-    @ViewState private var english = ""
-    var body: some View {
-        VStack(alignment: .leading, spacing: 17) {
-            Text("给字体一个好记的名字").font(.system(size: 21, weight: .semibold))
-            Text(font.english).font(.system(size: 12)).foregroundColor(Palette.muted)
-            Text("别名用于搜索和复制；留空将恢复字体原始名称。\n拼音会根据中文别名自动生成，不会修改字体文件。")
-                .font(.system(size: 12)).foregroundColor(Palette.muted).lineSpacing(5)
-            VStack(alignment: .leading, spacing: 8) {
-                Text("中文别名").font(.system(size: 11, weight: .medium))
-                TextField(font.chinese ?? "例如：我的标题字体", text: $chinese).textFieldStyle(.roundedBorder)
-                Text("英文别名").font(.system(size: 11, weight: .medium)).padding(.top, 6)
-                TextField(font.english, text: $english).textFieldStyle(.roundedBorder)
-            }
-            HStack {
-                Button("恢复原名") { chinese = ""; english = "" }.buttonStyle(QuietButton())
-                Spacer()
-                Button("取消") { dismiss() }.keyboardShortcut(.cancelAction).buttonStyle(QuietButton())
-                Button("保存") { model.saveNames(CustomNames(chinese: chinese, english: english), for: font.id); dismiss() }
-                    .keyboardShortcut(.defaultAction).buttonStyle(QuietButton(active: true))
-            }.padding(.top, 8)
-        }.padding(28).frame(width: 430).background(Palette.canvas).foregroundColor(Palette.ink)
-            .onAppear { chinese = model.custom[font.id]?.chinese ?? ""; english = model.custom[font.id]?.english ?? "" }
+        }.buttonStyle(.plain).disabled(value == nil).help(value.map { "点击复制：\($0)" } ?? "字体未提供中文名")
     }
 }
 

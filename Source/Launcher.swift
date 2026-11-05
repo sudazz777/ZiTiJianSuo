@@ -144,14 +144,14 @@ import SwiftUI
         switch sender.tag {
         case 0:
             if let c = model.chineseName(font) { model.copy(c, font: font, label: "中文名") }
-            else { model.notify("该字体没有中文名，可先添加别名") }
+            else { model.notify("该字体没有中文名") }
         case 1: model.copy(model.englishName(font), font: font, label: "英文名")
         default: break
         }
     }
     @objc func about() {
         NSApp.orderFrontStandardAboutPanel(options: [
-            .applicationName: "字体检索 Font Finder", .applicationVersion: "1.16",
+            .applicationName: "字体检索 Font Finder", .applicationVersion: "1.17",
             .credits: NSAttributedString(string: "好字体，随手就能找到。\n本机字体检索 · 离线使用\n中文、拼音、英文搜索\nApple 芯片与 Intel 通用")
         ])
     }

@@ -81,6 +81,7 @@ import SwiftUI
 struct FontManagementView: View {
     @ObservedObject var appModel: AppModel
     @ObservedObject var manager: FontManagementModel
+    @Binding var gridLayout: Bool
     @FocusState private var searchFocused: Bool
     private let columns = [GridItem(.adaptive(minimum: 260), spacing: 14, alignment: .top)]
     private var visible: [LocalFontFamily] { manager.visibleFamilies(appModel: appModel) }
@@ -93,11 +94,19 @@ struct FontManagementView: View {
                 ProgressView("正在读取字体册中的字体…").frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
-                    LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
-                        ForEach(visible) { item in
-                            FontManagementCard(appModel: appModel, manager: manager, item: item)
-                        }
-                    }.padding(1)
+                    if gridLayout {
+                        LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
+                            ForEach(visible) { item in
+                                FontManagementCard(appModel: appModel, manager: manager, item: item)
+                            }
+                        }.padding(1)
+                    } else {
+                        LazyVStack(spacing: 10) {
+                            ForEach(visible) { item in
+                                FontManagementCard(appModel: appModel, manager: manager, item: item, compact: true)
+                            }
+                        }.padding(1)
+                    }
                     if visible.isEmpty {
                         VStack(spacing: 10) {
                             Text(manager.onlyDeletable && manager.query.isEmpty ? "没有可删除的字体" : "没有符合条件的字体")
@@ -137,6 +146,7 @@ struct FontManagementView: View {
             }
             Spacer(minLength: 12)
             HStack(spacing: 8) {
+                FontLayoutToggle(grid: $gridLayout)
                 sortMenu
                 Button { appModel.reload() } label: {
                     Image(systemName: "arrow.clockwise").frame(width: 12)
@@ -254,6 +264,7 @@ private struct FontManagementCard: View {
     @ObservedObject var appModel: AppModel
     @ObservedObject var manager: FontManagementModel
     let item: LocalFontFamily
+    var compact = false
     private var chosen: Bool { manager.selected.contains(item.id) }
     private var face: FontFace { appModel.previewFace(item.font) }
     private var preview: String {
@@ -277,10 +288,12 @@ private struct FontManagementCard: View {
                     Text("\(item.font.faces.count) 种样式 · \(item.files.count) 个文件")
                         .font(.system(size: 10)).foregroundColor(Palette.muted)
                     Text(preview).font(.custom(face.id, size: appModel.size))
-                        .lineLimit(2).frame(maxWidth: .infinity, minHeight: 72, maxHeight: 72, alignment: .leading)
+                        .lineLimit(compact ? 1 : 2).frame(maxWidth: .infinity, minHeight: compact ? 34 : 72, maxHeight: compact ? 34 : 72, alignment: .leading)
                         .clipped().padding(.top, 5)
-                    Text("Aa Bb Cc 0123456789").font(.custom(face.id, size: 14))
-                        .lineLimit(1).frame(height: 22, alignment: .leading)
+                    if !compact {
+                        Text("Aa Bb Cc 0123456789").font(.custom(face.id, size: 14))
+                            .lineLimit(1).frame(height: 22, alignment: .leading)
+                    }
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(16).contentShape(Rectangle())
             }.buttonStyle(FontManagementCardButtonStyle()).disabled(!item.canTrash || manager.isProcessing)
                 .accessibilityLabel("\(item.font.english)，\(chosen ? "已选择" : "未选择")")
