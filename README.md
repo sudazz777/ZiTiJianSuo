@@ -6,11 +6,11 @@
 
 ![字体检索软件界面](documentation/assets/app-preview.png)
 
-## 下载 v1.18
+## 下载 v1.19
 
 | 下载文件 | 用途 |
 | --- | --- |
-| [下载 macOS 安装包（DMG）](https://github.com/sudazz777/ZiTiJianSuo/releases/download/v1.18/FontFinder-macOS-Universal-v1.18.dmg) | Apple 芯片与 Intel Mac，部署目标 macOS 13+ |
+| [下载 macOS 安装包（DMG）](https://github.com/sudazz777/ZiTiJianSuo/releases/download/v1.19/FontFinder-macOS-Universal-v1.19.dmg) | Apple 芯片与 Intel Mac，部署目标 macOS 13+ |
 
 ## 安装
 
@@ -34,11 +34,11 @@
 
 安装包不含字体文件；每台 Mac 显示各自安装的字体。复制的是名称文字，当前版本没有直接连接设计软件写入字体的功能。
 
-## v1.18 版本说明
+## v1.19 版本说明
 
-列表/网格切换的每个按钮均可整块点击，包含图标周围的留白。五个分类使用相同的切换控件；分类显示方式、上次打开的分类和窗口尺寸记忆继续保留。
+五个分类的初始显示方式统一为列表，本地字体管理也默认使用列表。手动切换后的显示偏好仍按分类保留；已保存的选择、上次分类和窗口尺寸继续记忆。
 
-![字体网格与切换按钮](documentation/assets/app-grid-preview.png)
+![本地字体管理默认列表](documentation/assets/font-management-preview.png)
 
 v1.14 及后续版本可在软件内选择「更新并重启」安装本版；更早版本需手动安装一次。首次安装仍可拖拽 DMG。
 
