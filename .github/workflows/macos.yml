@@ -80,6 +80,10 @@ jobs:
         timeout-minutes: 1
         continue-on-error: true
         run: '"字体检索.app/Contents/MacOS/FontName" --capture "$PWD/release/app-preview.png"'
+      - name: Capture font grid preview
+        timeout-minutes: 1
+        continue-on-error: true
+        run: '"字体检索.app/Contents/MacOS/FontName" --capture "$PWD/release/app-grid-preview.png" --capture-grid'
       - name: Capture local font management preview
         timeout-minutes: 1
         continue-on-error: true

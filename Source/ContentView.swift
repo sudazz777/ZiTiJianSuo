@@ -29,7 +29,9 @@ struct QuietButton: ButtonStyle {
 struct ContentView: View {
     @ObservedObject var model: AppModel
     @StateObject private var fontManager = FontManagementModel()
+    @AppStorage("allFonts.gridView") private var allFontsGrid = false
     @FocusState private var searchFocused: Bool
+    private var showsGrid: Bool { model.section == .all && (allFontsGrid || CommandLine.arguments.contains("--capture-grid")) }
     var body: some View {
         HStack(spacing: 0) {
             sidebar.frame(width: 200)
@@ -145,9 +147,10 @@ struct ContentView: View {
                 VStack(alignment: .leading, spacing: 7) {
                     Text(model.section.rawValue).font(.system(size: 25, weight: .semibold))
                     Text(model.loading ? "正在读取字体册中的字体…" : "\(model.visible.count) 个字体家族 · 粗细样式已合并")
-                        .font(.system(size: 11)).foregroundColor(Palette.muted)
+                        .font(.system(size: 11)).foregroundColor(Palette.muted).lineLimit(1).minimumScaleFactor(0.85)
                 }
                 Spacer()
+                if model.section == .all { layoutToggle }
                 Menu {
                     ForEach(FontSortOrder.allCases) { order in
                         Button { model.sortOrder = order } label: {
@@ -184,9 +187,15 @@ struct ContentView: View {
                 Spacer()
             } else {
                 ScrollView {
-                    LazyVStack(spacing: 10) {
-                        ForEach(model.visible) { font in FontRow(model: model, font: font) }
-                    }.padding(.horizontal, 24).padding(.bottom, 24)
+                    if showsGrid {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 14)], spacing: 14) {
+                            ForEach(model.visible) { font in FontRow(model: model, font: font, grid: true) }
+                        }.padding(.horizontal, 24).padding(.bottom, 24)
+                    } else {
+                        LazyVStack(spacing: 10) {
+                            ForEach(model.visible) { font in FontRow(model: model, font: font) }
+                        }.padding(.horizontal, 24).padding(.bottom, 24)
+                    }
                 }
             }
             HStack {
@@ -195,6 +204,25 @@ struct ContentView: View {
                 Text("v1.16").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
             }.padding(.horizontal, 25).frame(height: 35)
         }
+    }
+
+    private var layoutToggle: some View {
+        HStack(spacing: 2) {
+            Button { allFontsGrid = false } label: {
+                Image(systemName: "list.bullet").frame(width: 28, height: 28)
+                    .foregroundColor(!showsGrid ? .white : Palette.muted)
+                    .background(!showsGrid ? Palette.green : Color.clear)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }.help("列表显示").accessibilityLabel("列表显示").accessibilityValue(!showsGrid ? "已选择" : "未选择")
+            Button { allFontsGrid = true } label: {
+                Image(systemName: "square.grid.2x2").frame(width: 28, height: 28)
+                    .foregroundColor(showsGrid ? .white : Palette.muted)
+                    .background(showsGrid ? Palette.green : Color.clear)
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+            }.help("网格显示：一行多个字体").accessibilityLabel("网格显示").accessibilityValue(showsGrid ? "已选择" : "未选择")
+        }.font(.system(size: 12)).buttonStyle(.plain).padding(3)
+            .background(Color.white).clipShape(RoundedRectangle(cornerRadius: 8))
+            .overlay(RoundedRectangle(cornerRadius: 8).stroke(Palette.line, lineWidth: 1)).fixedSize()
     }
 
     private var emptyText: String { model.section == .favorites ? "把喜欢的字体收藏在这里" : "这里还没有字体记录" }
@@ -278,6 +306,11 @@ struct ContentView: View {
 struct FontRow: View {
     @ObservedObject var model: AppModel
     let font: FontRecord
+    var grid = false
+    private var sample: String {
+        let text = model.preview.isEmpty ? "把灵感，写成日常。" : model.preview
+        return grid && !model.previewFace(font).supportsChinese && FontNames.hasHan(text) ? "The quick brown fox" : text
+    }
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
             HStack(alignment: .top) {
@@ -290,9 +323,16 @@ struct FontRow: View {
                     Image(systemName: model.favorites.contains(font.id) ? "star.fill" : "star").font(.system(size: 12)).foregroundColor(Palette.muted)
                 }.buttonStyle(.plain).help("收藏 \(font.english)")
             }
-            Text(model.preview.isEmpty ? "把灵感，写成日常。" : model.preview)
-                .font(.custom(model.previewFace(font).id, size: 23)).lineLimit(1).frame(height: 29, alignment: .leading)
-                .foregroundColor(Palette.ink.opacity(0.88))
+            if grid {
+                Text(sample).font(.custom(model.previewFace(font).id, size: model.size)).lineLimit(2)
+                    .frame(maxWidth: .infinity, alignment: .leading).frame(height: 72, alignment: .leading).clipped()
+                    .foregroundColor(Palette.ink.opacity(0.88))
+                Text("Aa Bb Cc 0123456789").font(.custom(model.previewFace(font).id, size: 14))
+                    .lineLimit(1).frame(height: 22, alignment: .leading)
+            } else {
+                Text(sample).font(.custom(model.previewFace(font).id, size: 23)).lineLimit(1).frame(height: 29, alignment: .leading)
+                    .foregroundColor(Palette.ink.opacity(0.88))
+            }
             HStack(spacing: 6) {
                 Button("复制中文") { if let value = model.chineseName(font) { model.copy(value, font: font, label: "中文名") } }
                     .buttonStyle(QuietButton()).disabled(model.chineseName(font) == nil).opacity(model.chineseName(font) == nil ? 0.4 : 1)
@@ -300,8 +340,9 @@ struct FontRow: View {
                 Button("复制英文") { model.copy(model.englishName(font), font: font, label: "英文名") }.buttonStyle(QuietButton())
                 Spacer(minLength: 0)
                 Button { model.revealFontFile(font) } label: {
-                    Label("查看字体位置", systemImage: "folder")
+                    if grid { Image(systemName: "folder") } else { Label("查看字体位置", systemImage: "folder") }
                 }.buttonStyle(QuietButton())
+                    .accessibilityLabel("查看字体位置")
                     .disabled(model.previewFace(font).sourceURL == nil)
                     .help(model.fontFileURL(font)?.path ?? "字体文件暂不可用，请刷新字体列表")
             }
