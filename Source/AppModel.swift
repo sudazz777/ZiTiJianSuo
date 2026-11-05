@@ -27,7 +27,9 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
 @MainActor final class AppModel: ObservableObject {
     @Published var fonts: [FontRecord] = []
     @Published var query = "" { didSet { filter() } }
-    @Published var section: LibrarySection = .all { didSet { filter() } }
+    @Published var section: LibrarySection {
+        didSet { defaults.set(section.rawValue, forKey: "lastLibrarySection"); filter() }
+    }
     @Published var sortOrder: FontSortOrder {
         didSet {
             defaults.set(sortOrder.rawValue, forKey: "sortOrder")
@@ -53,6 +55,7 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
+        section = defaults.string(forKey: "lastLibrarySection").flatMap(LibrarySection.init(rawValue:)) ?? .all
         sortOrder = defaults.string(forKey: "sortOrder").flatMap(FontSortOrder.init(rawValue:)) ?? .englishAZ
         favorites = Set(defaults.stringArray(forKey: "favorites") ?? [])
         recent = defaults.stringArray(forKey: "recent") ?? []

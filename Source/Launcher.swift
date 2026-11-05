@@ -2,7 +2,8 @@ import AppKit
 import SwiftUI
 
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
-    let model = AppModel()
+    private static let captureSuite: String? = CommandLine.arguments.contains("--capture") ? "FontFinder.Capture.\(UUID().uuidString)" : nil
+    let model = AppModel(defaults: AppDelegate.captureSuite.flatMap { UserDefaults(suiteName: $0) } ?? .standard)
     let updater = AppUpdater()
     private var updateMenuItem: NSMenuItem?
     var window: NSWindow!
@@ -85,7 +86,10 @@ import SwiftUI
         if !CommandLine.arguments.contains("--capture") { updater.didBecomeActive() }
     }
 
-    func applicationWillTerminate(_ notification: Notification) { updater.stop() }
+    func applicationWillTerminate(_ notification: Notification) {
+        updater.stop()
+        if let suite = Self.captureSuite { UserDefaults.standard.removePersistentDomain(forName: suite) }
+    }
 
     private func makeMenu() {
         let bar = NSMenu()

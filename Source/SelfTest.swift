@@ -64,6 +64,10 @@ enum SelfTest {
         check(model.visible.map(\.id) == [fixture.id], "recent copies filter")
         let restored = AppModel(defaults: defaults)
         check(restored.favorites.contains(fixture.id) && restored.recent == [fixture.id] && restored.custom[fixture.id]?.chinese == "我的标题", "preferences persist across launches")
+        check(restored.section == .recent, "the previous sidebar category is restored across launches")
+        defaults.set("unknown-category", forKey: "lastLibrarySection")
+        check(AppModel(defaults: defaults).section == .all, "an unknown saved category falls back to all fonts")
+        defaults.set(model.section.rawValue, forKey: "lastLibrarySection")
         model.saveNames(CustomNames(), for: fixture.id)
         check(model.chineseName(fixture) == fixture.chinese, "restore official name")
 
