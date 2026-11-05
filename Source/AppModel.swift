@@ -25,13 +25,20 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
 }
 
 @MainActor final class AppModel: ObservableObject {
-    @Published var fonts: [FontRecord] = []
+    @Published var fonts: [FontRecord] = [] {
+        didSet {
+            fontsByID = Dictionary(uniqueKeysWithValues: fonts.map { ($0.id, $0) })
+            sortedCatalog = nil
+            nameIndices = nameIndices.filter { fontsByID[$0.key] != nil }
+        }
+    }
     @Published var query = "" { didSet { filter() } }
     @Published var section: LibrarySection {
         didSet { defaults.set(section.rawValue, forKey: "lastLibrarySection"); filter() }
     }
     @Published var sortOrder: FontSortOrder {
         didSet {
+            sortedCatalog = nil
             defaults.set(sortOrder.rawValue, forKey: "sortOrder")
             filter()
         }
@@ -44,14 +51,26 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
     @Published var preview = "把灵感，写成日常。"
     @Published var size: Double = 26
     @Published var favorites: Set<String>
-    @Published var recent: [String]
-    @Published var custom: [String: CustomNames]
+    @Published var recent: [String] { didSet { if sortOrder == .recentFirst { sortedCatalog = nil } } }
+    @Published var custom: [String: CustomNames] { didSet { sortedCatalog = nil } }
     @Published var faceSelections: [String: String] = [:]
     private let defaults: UserDefaults
     private var toastWork: DispatchWorkItem?
     private var fontObserver: NSObjectProtocol?
     private var scanning = false
     private var reloadPending = false
+    private var fontChangeWork: DispatchWorkItem?
+    private var fontsByID: [String: FontRecord] = [:]
+    private var sortedCatalog: [FontRecord]?
+    private struct NameIndex {
+        let names: CustomNames
+        let english: String
+        let chinese: String?
+        let terms: [String]
+        let englishKey: String
+        let pinyinKey: String
+    }
+    private var nameIndices: [String: NameIndex] = [:]
 
     init(defaults: UserDefaults = .standard) {
         self.defaults = defaults
@@ -61,11 +80,24 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
         recent = defaults.stringArray(forKey: "recent") ?? []
         custom = defaults.data(forKey: "customNames").flatMap { try? JSONDecoder().decode([String: CustomNames].self, from: $0) } ?? [:]
         fontObserver = DistributedNotificationCenter.default().addObserver(forName: NSNotification.Name(kCTFontManagerRegisteredFontsChangedNotification as String), object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.reload() }
+            Task { @MainActor [weak self] in self?.scheduleFontReload() }
         }
     }
 
+    deinit {
+        fontChangeWork?.cancel()
+        if let fontObserver { DistributedNotificationCenter.default().removeObserver(fontObserver) }
+    }
+
+    private func scheduleFontReload() {
+        fontChangeWork?.cancel()
+        let work = DispatchWorkItem { [weak self] in self?.reload() }
+        fontChangeWork = work
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
+    }
+
     func reload() {
+        fontChangeWork?.cancel(); fontChangeWork = nil
         guard !scanning else { reloadPending = true; return }
         scanning = true
         loading = true
@@ -90,9 +122,17 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
             selection = family
             if old != family { faceSelections[family] = old }
         }
-        favorites = Set(favorites.map { lookup[$0] ?? $0 })
+        let migratedFavorites = Set(favorites.map { lookup[$0] ?? $0 })
+        if migratedFavorites != favorites {
+            favorites = migratedFavorites
+            defaults.set(Array(favorites), forKey: "favorites")
+        }
         var seen = Set<String>()
-        recent = recent.map { lookup[$0] ?? $0 }.filter { seen.insert($0).inserted }
+        let migratedRecent = recent.map { lookup[$0] ?? $0 }.filter { seen.insert($0).inserted }
+        if migratedRecent != recent {
+            recent = migratedRecent
+            defaults.set(recent, forKey: "recent")
+        }
         let previous = custom
         var migrated = custom
         for font in records {
@@ -103,10 +143,10 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
             }
             for face in font.faces where face.id != font.id { migrated.removeValue(forKey: face.id) }
         }
-        custom = migrated
-        defaults.set(Array(favorites), forKey: "favorites")
-        defaults.set(recent, forKey: "recent")
-        defaults.set(try? JSONEncoder().encode(custom), forKey: "customNames")
+        if migrated != custom {
+            custom = migrated
+            defaults.set(try? JSONEncoder().encode(custom), forKey: "customNames")
+        }
         fonts = records
         filter()
     }
@@ -135,12 +175,39 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
     }
 
     func filter() {
-        let byID = Dictionary(uniqueKeysWithValues: fonts.map { ($0.id, $0) })
-        var source = section == .recent ? recent.compactMap { byID[$0] } : fonts
+        var source = section == .recent && sortOrder == .defaultOrder ? recent.compactMap { fontsByID[$0] } : catalogInDisplayOrder()
+        if section == .recent {
+            let recentIDs = Set(recent)
+            source = source.filter { recentIDs.contains($0.id) }
+        }
         if section == .favorites { source = source.filter { favorites.contains($0.id) } }
         if section == .chinese { source = source.filter(\.supportsChinese) }
-        visible = sortedFonts(source.filter { $0.matches(query, custom: custom[$0.id]) })
+        let normalized = FontNames.normalized(query)
+        visible = source.filter { matches($0, normalizedQuery: normalized) }
         if !visible.contains(where: { $0.id == selection }) { selection = visible.first?.id }
+    }
+
+    func catalogInDisplayOrder() -> [FontRecord] {
+        if let sortedCatalog { return sortedCatalog }
+        let result = sortedFonts(fonts)
+        sortedCatalog = result
+        return result
+    }
+
+    func matches(_ font: FontRecord, normalizedQuery: String) -> Bool {
+        guard !normalizedQuery.isEmpty else { return true }
+        return font.matchesNormalized(normalizedQuery, extra: nameIndex(for: font)?.terms ?? [])
+    }
+
+    private func nameIndex(for font: FontRecord) -> NameIndex? {
+        guard let names = custom[font.id] else { return nil }
+        if let cached = nameIndices[font.id], cached.names == names, cached.english == font.english, cached.chinese == font.chinese { return cached }
+        let result = NameIndex(names: names, english: font.english, chinese: font.chinese,
+                               terms: FontNames.searchTerms([names.chinese, names.english]),
+                               englishKey: FontNames.sortKey(englishName(font)),
+                               pinyinKey: FontNames.sortKey(chineseName(font) ?? englishName(font)))
+        nameIndices[font.id] = result
+        return result
     }
 
     func sortedFonts(_ records: [FontRecord]) -> [FontRecord] {
@@ -149,8 +216,8 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
         let descending = sortOrder == .englishZA || sortOrder == .pinyinZA
         let ranks = Dictionary(uniqueKeysWithValues: recent.enumerated().map { ($0.element, $0.offset) })
         let keyed = records.map { font -> (font: FontRecord, key: String) in
-            let name = pinyin ? (chineseName(font) ?? englishName(font)) : englishName(font)
-            let key = FontNames.normalized(FontNames.hasHan(name) ? FontNames.pinyin(name) : name)
+            let index = nameIndex(for: font)
+            let key = pinyin ? (index?.pinyinKey ?? font.pinyinSortKey) : (index?.englishKey ?? font.englishSortKey)
             return (font, key)
         }
         return keyed.sorted { a, b in
@@ -165,7 +232,7 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
         }.map(\.font)
     }
 
-    var selected: FontRecord? { fonts.first { $0.id == selection } }
+    var selected: FontRecord? { selection.flatMap { fontsByID[$0] } }
     func chineseName(_ font: FontRecord) -> String? {
         let c = custom[font.id]?.chinese.trimmingCharacters(in: .whitespacesAndNewlines) ?? ""
         return c.isEmpty ? font.chinese : c

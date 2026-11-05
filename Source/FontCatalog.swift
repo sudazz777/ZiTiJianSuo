@@ -56,8 +56,27 @@ enum FontNames {
     }
 
     static func initials(_ text: String) -> String {
-        pinyin(text).split(whereSeparator: { !$0.isLetter && !$0.isNumber })
+        initialsFromPinyin(pinyin(text))
+    }
+
+    private static func initialsFromPinyin(_ text: String) -> String {
+        text.split(whereSeparator: { !$0.isLetter && !$0.isNumber })
             .compactMap(\.first).map(String.init).joined().lowercased()
+    }
+
+    static func searchTerms(_ terms: [String]) -> [String] {
+        var index = Set<String>()
+        for term in Set(terms) where !term.isEmpty {
+            let latin = pinyin(term)
+            index.insert(normalized(term)); index.insert(normalized(latin))
+            index.insert(initialsFromPinyin(latin))
+        }
+        index.remove("")
+        return Array(index)
+    }
+
+    static func sortKey(_ text: String) -> String {
+        normalized(hasHan(text) ? pinyin(text) : text)
     }
 
     // Search aliases supplement the metadata; they are never presented as official names.
@@ -122,6 +141,7 @@ struct FontFace: Identifiable {
     let sourceURL: URL?
     let supportsChinese: Bool
     let names: [String]
+    private let regularStyle: Bool
     var label: String { localizedStyle ?? style }
 
     init(id: String, family: String, englishFamily: String, chineseFamily: String?, style: String,
@@ -130,14 +150,12 @@ struct FontFace: Identifiable {
         self.id = id; self.family = family; self.englishFamily = englishFamily; self.chineseFamily = chineseFamily
         self.style = style; self.localizedStyle = localizedStyle; self.weight = weight; self.italic = italic
         self.sourceURL = sourceURL; self.supportsChinese = supportsChinese; self.names = names
+        regularStyle = ["regular", "normal", "book", "roman"].contains(FontNames.normalized(style))
     }
 
     static func preferred(_ a: FontFace, _ b: FontFace) -> Bool {
         if a.italic != b.italic { return !a.italic }
-        let regularNames = ["regular", "normal", "book", "roman"]
-        let ar = regularNames.contains(FontNames.normalized(a.style))
-        let br = regularNames.contains(FontNames.normalized(b.style))
-        if ar != br { return ar }
+        if a.regularStyle != b.regularStyle { return a.regularStyle }
         if abs(a.weight) != abs(b.weight) { return abs(a.weight) < abs(b.weight) }
         return a.id < b.id
     }
@@ -181,24 +199,28 @@ struct FontRecord: Identifiable {
     let supportsChinese: Bool
     let searchIndex: [String]
     let faces: [FontFace]
-    var defaultFace: FontFace { faces.sorted(by: FontFace.preferred).first! }
+    let defaultFace: FontFace
+    let englishSortKey: String
+    let pinyinSortKey: String
 
     init(id: String, family: String, english: String, chinese: String?, style: String, aliases: [String], allNames: [String], supportsChinese: Bool = false, faces: [FontFace]? = nil) {
         self.id = id; self.family = family; self.english = english; self.chinese = chinese
         self.style = style; self.aliases = aliases; self.allNames = allNames
         self.supportsChinese = supportsChinese
         self.faces = faces.flatMap { $0.isEmpty ? nil : $0 } ?? [FontFace(id: id, family: family, englishFamily: english, chineseFamily: chinese, style: style, supportsChinese: supportsChinese)]
+        defaultFace = self.faces.min(by: FontFace.preferred)!
+        englishSortKey = FontNames.sortKey(english)
+        pinyinSortKey = FontNames.sortKey(chinese ?? english)
         let terms = [id, family, english, chinese ?? "", style] + aliases + allNames
-        self.searchIndex = Array(Set(terms.flatMap { [FontNames.normalized($0), FontNames.normalized(FontNames.pinyin($0)), FontNames.initials($0)] }.filter { !$0.isEmpty }))
+        self.searchIndex = FontNames.searchTerms(terms)
     }
 
     func matches(_ query: String, custom: CustomNames? = nil) -> Bool {
-        let q = FontNames.normalized(query)
-        guard !q.isEmpty else { return true }
-        let extras = [custom?.chinese ?? "", custom?.english ?? ""].flatMap {
-            [FontNames.normalized($0), FontNames.normalized(FontNames.pinyin($0)), FontNames.initials($0)]
-        }
-        return (searchIndex + extras).contains { $0.contains(q) }
+        matchesNormalized(FontNames.normalized(query), extra: FontNames.searchTerms([custom?.chinese ?? "", custom?.english ?? ""]))
+    }
+
+    func matchesNormalized(_ query: String, extra: [String] = []) -> Bool {
+        query.isEmpty || searchIndex.contains { $0.contains(query) } || extra.contains { $0.contains(query) }
     }
 
     static func familyKey(_ name: String) -> String {

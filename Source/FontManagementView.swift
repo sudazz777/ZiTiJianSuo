@@ -3,7 +3,9 @@ import SwiftUI
 
 @MainActor final class FontManagementModel: ObservableObject {
     @Published var files: [LocalFontFile] = []
-    @Published var families: [LocalFontFamily] = []
+    @Published var families: [LocalFontFamily] = [] {
+        didSet { familiesByID = Dictionary(uniqueKeysWithValues: families.map { ($0.id, $0) }) }
+    }
     @Published var selected: Set<String> = []
     @Published var query = ""
     @Published var onlyDeletable = true
@@ -11,15 +13,15 @@ import SwiftUI
     @Published var status = "选择字体后，可批量移到电脑废纸篓。"
     @Published var results: [FontTrashResult] = []
     let store = FontTrashStore()
+    private var familiesByID: [String: LocalFontFamily] = [:]
     var selectedFiles: [LocalFontFile] { LocalFontFamily.selectedFiles(in: families, selected: selected) }
     func visibleFamilies(appModel: AppModel) -> [LocalFontFamily] {
-        let byID = Dictionary(uniqueKeysWithValues: families.map { ($0.id, $0) })
-        let matching = appModel.fonts.compactMap { byID[$0.id] }.filter { item in
+        let normalized = FontNames.normalized(query)
+        return appModel.catalogInDisplayOrder().compactMap { familiesByID[$0.id] }.filter { item in
             (!onlyDeletable || item.canTrash) &&
-            (item.font.matches(query, custom: appModel.custom[item.id]) ||
+            (appModel.matches(item.font, normalizedQuery: normalized) ||
              item.files.contains { $0.url.path.localizedCaseInsensitiveContains(query) })
         }
-        return appModel.sortedFonts(matching.map(\.font)).compactMap { byID[$0.id] }
     }
     func refresh(_ fonts: [FontRecord]) {
         guard !isProcessing else { return }

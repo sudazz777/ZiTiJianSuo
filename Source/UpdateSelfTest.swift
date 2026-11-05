@@ -1,6 +1,23 @@
 import Foundation
 import CryptoKit
 
+final class UpdateMockProtocol: URLProtocol {
+    static var handler: ((URLRequest) throws -> (Int, Data))?
+    override class func canInit(with request: URLRequest) -> Bool { true }
+    override class func canonicalRequest(for request: URLRequest) -> URLRequest { request }
+    override func startLoading() {
+        do {
+            guard let handler = Self.handler else { throw UpdateError.unavailable }
+            let (status, data) = try handler(request)
+            let response = HTTPURLResponse(url: request.url!, statusCode: status, httpVersion: "HTTP/1.1", headerFields: ["Content-Type": "application/json"])!
+            client?.urlProtocol(self, didReceive: response, cacheStoragePolicy: .notAllowed)
+            client?.urlProtocol(self, didLoad: data)
+            client?.urlProtocolDidFinishLoading(self)
+        } catch { client?.urlProtocol(self, didFailWithError: error) }
+    }
+    override func stopLoading() {}
+}
+
 enum UpdateSelfTest {
     @MainActor static func run() async {
         var checks = 0
@@ -67,32 +84,32 @@ enum UpdateSelfTest {
             check(!UpdateCheckPolicy(defaults: UserDefaults(suiteName: suite)!).shouldPresent(latest, manual: false), "skip selection persists")
 
             let configuration = URLSessionConfiguration.ephemeral
-            configuration.protocolClasses = [CloudMockProtocol.self]
+            configuration.protocolClasses = [UpdateMockProtocol.self]
             let session = URLSession(configuration: configuration)
-            defer { session.invalidateAndCancel(); CloudMockProtocol.handler = nil }
+            defer { session.invalidateAndCancel(); UpdateMockProtocol.handler = nil }
             let client = AppUpdateClient(session: session)
-            CloudMockProtocol.handler = { request in
+            UpdateMockProtocol.handler = { request in
                 guard request.url == AppUpdateRelease.metadataURL, request.value(forHTTPHeaderField: "Authorization") == nil,
                       request.httpBody == nil, request.httpMethod == "GET", request.timeoutInterval <= 15 else { throw UpdateError.invalidRelease }
                 return (200, encoded)
             }
             check(try await client.latest().identifier == latest.identifier, "public update fetch uses no credential or font payload")
-            CloudMockProtocol.handler = { _ in (404, Data()) }
+            UpdateMockProtocol.handler = { _ in (404, Data()) }
             do { _ = try await client.latest(); check(false, "missing release fails gracefully") }
             catch { check(true, "missing release fails gracefully") }
-            CloudMockProtocol.handler = { _ in throw URLError(.notConnectedToInternet) }
+            UpdateMockProtocol.handler = { _ in throw URLError(.notConnectedToInternet) }
             do { _ = try await client.latest(); check(false, "offline update check fails gracefully") }
             catch { check(true, "offline update check fails gracefully") }
             let downloadConfig = URLSessionConfiguration.ephemeral
-            downloadConfig.protocolClasses = [CloudMockProtocol.self]
-            CloudMockProtocol.handler = { request in
+            downloadConfig.protocolClasses = [UpdateMockProtocol.self]
+            UpdateMockProtocol.handler = { request in
                 guard request.url == package.downloadURL, request.value(forHTTPHeaderField: "Authorization") == nil else { throw UpdateError.invalidRelease }
                 return (200, fixture)
             }
             let downloaded = try await AppUpdateDownload.fetch(package, session: URLSession(configuration: downloadConfig)) { _ in }
             defer { try? FileManager.default.removeItem(at: downloaded.deletingLastPathComponent()) }
             check(try Data(contentsOf: downloaded) == fixture, "downloads and verifies a release to a private temporary file")
-            CloudMockProtocol.handler = { _ in (200, Data(repeating: 0, count: fixture.count)) }
+            UpdateMockProtocol.handler = { _ in (200, Data(repeating: 0, count: fixture.count)) }
             do {
                 _ = try await AppUpdateDownload.fetch(package, session: URLSession(configuration: downloadConfig)) { _ in }
                 check(false, "download corruption fails before installation")

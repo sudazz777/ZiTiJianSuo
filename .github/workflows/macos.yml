@@ -46,8 +46,6 @@ jobs:
         run: |
           release_version=$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "字体检索.app/Contents/Info.plist")
           echo "version=$release_version" >> "$GITHUB_OUTPUT"
-      - name: Test cloud library and upload permissions
-        run: '"字体检索.app/Contents/MacOS/FontName" --cloud-self-test'
       - name: Test update discovery and version policy
         run: '"字体检索.app/Contents/MacOS/FontName" --update-self-test'
       - name: Prepare Finder layout tooling
@@ -66,6 +64,9 @@ jobs:
           bash Tools/verify-dmg.sh
       - name: Test installed app
         run: '"/Applications/字体检索.app/Contents/MacOS/FontName" --self-test'
+      - name: Check runtime cache correctness and measure search performance
+        timeout-minutes: 3
+        run: '"/Applications/字体检索.app/Contents/MacOS/FontName" --runtime-self-test'
       - name: Test real font Trash operation and failure rollback
         run: '"/Applications/字体检索.app/Contents/MacOS/FontName" --font-management-self-test "$PWD/fonts/files"'
       - name: Test automatic update installation and rollback in isolated apps

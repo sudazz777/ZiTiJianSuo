@@ -1,10 +1,6 @@
 import SwiftUI
 import AppKit
 
-// Explicitly selects the property wrapper when building with SDKs that also
-// define a State macro. This keeps the source compatible with Command Line Tools.
-typealias ViewState<Value> = SwiftUI.State<Value>
-
 enum Palette {
     static let ink = Color(red: 0.13, green: 0.18, blue: 0.16)
     static let green = Color(red: 0.16, green: 0.36, blue: 0.29)
@@ -83,7 +79,10 @@ struct ContentView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .focusFontSearch)) { _ in if model.section != .management { searchFocused = true } }
-        .onReceive(model.$fonts) { fontManager.refresh($0) }
+        .onReceive(model.$fonts) { if model.section == .management { fontManager.refresh($0) } }
+        .onChange(of: model.section) { section in
+            if section == .management { fontManager.refresh(model.fonts) }
+        }
     }
 
     private var sidebar: some View {
@@ -135,7 +134,7 @@ struct ContentView: View {
         case .chinese: return "\(model.fonts.filter(\.supportsChinese).count)"
         case .favorites: return "\(model.fonts.filter { model.favorites.contains($0.id) }.count)"
         case .recent: return "\(model.fonts.filter { model.recent.contains($0.id) }.count)"
-        case .management: return "\(fontManager.families.count)"
+        case .management: return "\(model.fonts.count)"
         }
     }
 
@@ -217,7 +216,7 @@ struct ContentView: View {
             HStack {
                 Text("字体册已启用字体 · 复制家族名称").font(.system(size: 9)).foregroundColor(Palette.muted)
                 Spacer()
-                Text("v1.19").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
+                Text("v1.20").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
             }.padding(.horizontal, 25).frame(height: 35)
         }
     }
@@ -367,7 +366,7 @@ struct FontRow: View {
                 }.buttonStyle(QuietButton())
                     .accessibilityLabel("查看字体位置")
                     .disabled(model.previewFace(font).sourceURL == nil)
-                    .help(model.fontFileURL(font)?.path ?? "字体文件暂不可用，请刷新字体列表")
+                    .help(model.previewFace(font).sourceURL?.path ?? "字体文件暂不可用，请刷新字体列表")
             }
         }.padding(16).background(model.selection == font.id ? Color.white : Color.white.opacity(0.6))
             .clipShape(RoundedRectangle(cornerRadius: 12))
@@ -404,6 +403,5 @@ struct CopyNameCard: View {
 }
 
 extension Notification.Name {
-    static let refreshCloudFonts = Notification.Name("FontName.refreshCloudFonts")
     static let focusFontSearch = Notification.Name("FontName.focusSearch")
 }
