@@ -79,6 +79,24 @@ enum TextFocusSelfTest {
         }
         let app = NSApplication.shared
         app.setActivationPolicy(.accessory)
+        let frameName = "FontName.FrameTest.\(UUID().uuidString)"
+        let savedWindow = NSWindow(contentRect: NSRect(x: 60, y: 80, width: 500, height: 260), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        let restoredWindow = NSWindow(contentRect: NSRect(x: 60, y: 80, width: 500, height: 260), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        let captureWindow = NSWindow(contentRect: NSRect(x: 60, y: 80, width: 500, height: 260), styleMask: [.titled, .resizable], backing: .buffered, defer: false)
+        for window in [savedWindow, restoredWindow, captureWindow] { window.isReleasedWhenClosed = false }
+        defer {
+            restoredWindow.setFrameAutosaveName("")
+            savedWindow.close(); restoredWindow.close(); captureWindow.close()
+            NSWindow.removeFrame(usingName: frameName)
+        }
+        savedWindow.setFrame(NSRect(x: 60, y: 80, width: 760, height: 500), display: false)
+        savedWindow.saveFrame(usingName: frameName)
+        MainWindowState.configure(restoredWindow, name: frameName)
+        check(restoredWindow.frame.size == savedWindow.frame.size, "a new application window restores the previously saved dimensions")
+        let captureSize = captureWindow.frame.size
+        MainWindowState.configure(captureWindow, name: frameName, capture: true)
+        check(captureWindow.frame.size == captureSize && captureWindow.frameAutosaveName.isEmpty,
+              "screenshot windows keep their specified size and do not overwrite the saved application frame")
         func makeWindow() -> NSWindow {
             let window = NSWindow(contentRect: NSRect(x: 0, y: 0, width: 500, height: 260),
                                   styleMask: [.titled, .closable], backing: .buffered, defer: false)

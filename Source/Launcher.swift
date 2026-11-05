@@ -22,8 +22,7 @@ import SwiftUI
         window.minSize = NSSize(width: 1060, height: 670)
         window.isReleasedWhenClosed = false
         window.contentView = NSHostingView(rootView: ContentView(model: model).padding(.top, 28).background(Palette.canvas).ignoresSafeArea(.container, edges: .top))
-        window.center()
-        if !CommandLine.arguments.contains("--capture") { window.setFrameAutosaveName("FontName.main") }
+        MainWindowState.configure(window, capture: CommandLine.arguments.contains("--capture"))
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
         model.reload()
