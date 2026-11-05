@@ -4,6 +4,7 @@ import SwiftUI
 @MainActor final class AppDelegate: NSObject, NSApplicationDelegate {
     private static let captureSuite: String? = CommandLine.arguments.contains("--capture") ? "FontFinder.Capture.\(UUID().uuidString)" : nil
     let model = AppModel(defaults: AppDelegate.captureSuite.flatMap { UserDefaults(suiteName: $0) } ?? .standard)
+    let fontManager = FontManagementModel()
     let updater = AppUpdater()
     private var updateMenuItem: NSMenuItem?
     var window: NSWindow!
@@ -21,7 +22,7 @@ import SwiftUI
         window.titlebarAppearsTransparent = true
         window.minSize = NSSize(width: 1060, height: 670)
         window.isReleasedWhenClosed = false
-        window.contentView = NSHostingView(rootView: ContentView(model: model).padding(.top, 28).background(Palette.canvas).ignoresSafeArea(.container, edges: .top))
+        window.contentView = NSHostingView(rootView: ContentView(model: model, fontManager: fontManager).padding(.top, 28).background(Palette.canvas).ignoresSafeArea(.container, edges: .top))
         MainWindowState.configure(window, capture: CommandLine.arguments.contains("--capture"))
         window.makeKeyAndOrderFront(nil)
         NSApp.activate(ignoringOtherApps: true)
@@ -51,8 +52,9 @@ import SwiftUI
 
     private func waitThenCapture(_ path: String, attempts: Int) {
         DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-            if self.model.loading && attempts > 0 { self.waitThenCapture(path, attempts: attempts - 1); return }
-            guard !self.model.loading else { fputs("Font loading timed out\n", stderr); exit(1) }
+            let waiting = self.model.loading || (self.model.section == .management && (self.fontManager.isRefreshing || self.fontManager.loadedRevision != self.model.catalogRevision))
+            if waiting && attempts > 0 { self.waitThenCapture(path, attempts: attempts - 1); return }
+            guard !waiting else { fputs("Font loading timed out\n", stderr); exit(1) }
             if let view = self.window.contentView, let bitmap = view.bitmapImageRepForCachingDisplay(in: view.bounds) {
                 view.layoutSubtreeIfNeeded()
                 view.cacheDisplay(in: view.bounds, to: bitmap)
@@ -153,7 +155,7 @@ import SwiftUI
     }
     @objc func about() {
         NSApp.orderFrontStandardAboutPanel(options: [
-            .applicationName: "字体检索 Font Finder", .applicationVersion: "1.20",
+            .applicationName: "字体检索 Font Finder", .applicationVersion: "1.21",
             .credits: NSAttributedString(string: "好字体，随手就能找到。\n本机字体检索 · 离线使用\n中文、拼音、英文搜索\nApple 芯片与 Intel 通用")
         ])
     }
@@ -186,6 +188,10 @@ import SwiftUI
         if CommandLine.arguments.contains("--focus-self-test") { TextFocusSelfTest.run(); return }
         if CommandLine.arguments.contains("--self-test") { SelfTest.run(); return }
         if CommandLine.arguments.contains("--runtime-self-test") { RuntimeSelfTest.run(); return }
+        if CommandLine.arguments.contains("--sidebar-self-test") {
+            Task { @MainActor in await SidebarSelfTest.run(); exit(0) }
+            RunLoop.main.run(); return
+        }
         if CommandLine.arguments.contains("--font-management-self-test") { FontManagementSelfTest.run(); return }
         if CommandLine.arguments.contains("--update-self-test") {
             Task { @MainActor in await UpdateSelfTest.run(); exit(0) }

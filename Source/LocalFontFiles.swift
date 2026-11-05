@@ -1,6 +1,15 @@
 import Foundation
 import CoreText
 
+struct FontManagementSnapshot {
+    let files: [LocalFontFile]
+    let families: [LocalFontFamily]
+    static func read(_ fonts: [FontRecord]) -> Self {
+        let files = LocalFontFile.catalog(fonts)
+        return Self(files: files, families: LocalFontFamily.catalog(fonts, files: files))
+    }
+}
+
 enum FontFileError: LocalizedError {
     case message(String)
     var errorDescription: String? { if case let .message(text) = self { return text }; return nil }

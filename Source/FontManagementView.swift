@@ -10,10 +10,20 @@ import SwiftUI
     @Published var query = ""
     @Published var onlyDeletable = true
     @Published var isProcessing = false
+    @Published private(set) var isRefreshing = false
     @Published var status = "选择字体后，可批量移到电脑废纸篓。"
     @Published var results: [FontTrashResult] = []
     let store = FontTrashStore()
     private var familiesByID: [String: LocalFontFamily] = [:]
+    private let catalogLoader: ([FontRecord]) -> FontManagementSnapshot
+    private var refreshTask: Task<Void, Never>?
+    private var refreshToken: UUID?
+    private var requestedRevision: UInt64?
+    private(set) var loadedRevision: UInt64?
+    init(catalogLoader: @escaping ([FontRecord]) -> FontManagementSnapshot = FontManagementSnapshot.read) {
+        self.catalogLoader = catalogLoader
+    }
+    deinit { refreshTask?.cancel() }
     var selectedFiles: [LocalFontFile] { LocalFontFamily.selectedFiles(in: families, selected: selected) }
     func visibleFamilies(appModel: AppModel) -> [LocalFontFamily] {
         let normalized = FontNames.normalized(query)
@@ -25,18 +35,35 @@ import SwiftUI
     }
     func refresh(_ fonts: [FontRecord]) {
         guard !isProcessing else { return }
-        files = LocalFontFile.catalog(fonts, store: store)
-        families = LocalFontFamily.catalog(fonts, files: files)
+        apply(catalogLoader(fonts))
+    }
+    private func apply(_ snapshot: FontManagementSnapshot) {
+        files = snapshot.files
+        families = snapshot.families
         selected.formIntersection(Set(families.filter(\.canTrash).map(\.id)))
+    }
+    func prepare(_ fonts: [FontRecord], revision: UInt64, force: Bool = false) {
+        guard !isProcessing else { return }
+        if !force && (loadedRevision == revision || (requestedRevision == revision && refreshTask != nil)) { return }
+        refreshTask?.cancel()
+        let token = UUID(), loader = catalogLoader
+        refreshToken = token; requestedRevision = revision; isRefreshing = true
+        refreshTask = Task { [weak self] in
+            let snapshot = await Task.detached(priority: .userInitiated) { loader(fonts) }.value
+            guard !Task.isCancelled, let self, self.refreshToken == token else { return }
+            self.requestedRevision = nil; self.refreshTask = nil; self.isRefreshing = false
+            guard !self.isProcessing else { return }
+            self.apply(snapshot); self.loadedRevision = revision
+        }
     }
     func selectVisible(_ visible: [LocalFontFamily]) { selected.formUnion(visible.filter(\.canTrash).map(\.id)) }
     func requestDeletion(appModel: AppModel) {
-        guard !isProcessing else { return }
+        guard !isProcessing && !isRefreshing else { return }
         let chosen = selectedFiles
         guard !chosen.isEmpty else { return }
         let snapshots: [FontTrashSelection]
         do { snapshots = try chosen.map(store.selection) }
-        catch { status = "未执行删除：\(error.localizedDescription)"; refresh(appModel.fonts); return }
+        catch { status = "未执行删除：\(error.localizedDescription) 请手动刷新后重试。"; return }
 
         let alert = NSAlert()
         alert.alertStyle = .warning
@@ -65,11 +92,12 @@ import SwiftUI
             results = batch
             let removed = Set(batch.filter(\.success).map { $0.file.id })
             selected.subtract(families.filter { !$0.fileIDs.isDisjoint(with: removed) }.map(\.id))
-            files.removeAll { removed.contains($0.id) }
-            families.removeAll { $0.fileIDs.isSubset(of: removed) }
+            let remainingFiles = files.filter { !removed.contains($0.id) }
+            appModel.removeFontFiles(removed)
+            apply(FontManagementSnapshot(files: remainingFiles, families: LocalFontFamily.catalog(appModel.fonts, files: remainingFiles)))
+            loadedRevision = appModel.catalogRevision
             let failed = batch.count - removed.count
             status = "已移到废纸篓 \(removed.count) 个文件" + (failed > 0 ? "；\(failed) 个未完成，文件已保留，请查看结果。" : "。")
-            appModel.reload()
         }
     }
     func openTrash() {
@@ -92,20 +120,20 @@ struct FontManagementView: View {
             header
             previewToolbar
             selectionToolbar
-            if appModel.loading && manager.families.isEmpty {
-                ProgressView("正在读取字体册中的字体…").frame(maxWidth: .infinity, maxHeight: .infinity)
+            if (appModel.loading || manager.isRefreshing) && manager.families.isEmpty {
+                ProgressView("正在读取字体信息…").frame(maxWidth: .infinity, maxHeight: .infinity)
             } else {
                 ScrollView {
                     if gridLayout {
                         LazyVGrid(columns: columns, alignment: .leading, spacing: 14) {
                             ForEach(visible) { item in
-                                FontManagementCard(appModel: appModel, manager: manager, item: item)
+                                FontManagementCard(appModel: appModel, manager: manager, item: item).equatable()
                             }
                         }.padding(1)
                     } else {
                         LazyVStack(spacing: 10) {
                             ForEach(visible) { item in
-                                FontManagementCard(appModel: appModel, manager: manager, item: item, compact: true)
+                                FontManagementCard(appModel: appModel, manager: manager, item: item, compact: true).equatable()
                             }
                         }.padding(1)
                     }
@@ -133,7 +161,8 @@ struct FontManagementView: View {
             }
             HStack {
                 if manager.isProcessing { ProgressView().controlSize(.small) }
-                Text(manager.status).font(.system(size: 11)).foregroundColor(Palette.muted).textSelection(.enabled)
+                if manager.isRefreshing { ProgressView().controlSize(.small) }
+                Text(manager.isRefreshing ? "正在更新字体信息…" : manager.status).font(.system(size: 11)).foregroundColor(Palette.muted).textSelection(.enabled)
             }
         }.padding(.horizontal, 24).padding(.vertical, 20).background(Palette.canvas)
             .onReceive(NotificationCenter.default.publisher(for: .focusFontSearch)) { _ in searchFocused = true }
@@ -152,7 +181,7 @@ struct FontManagementView: View {
                 sortMenu
                 Button { appModel.reload() } label: {
                     Image(systemName: "arrow.clockwise").frame(width: 12)
-                }.buttonStyle(ManagementToolbarButton()).disabled(manager.isProcessing || appModel.loading)
+                }.buttonStyle(ManagementToolbarButton()).disabled(manager.isProcessing || manager.isRefreshing || appModel.loading)
                     .help("刷新字体（⌘R）").accessibilityLabel("刷新字体")
                 Button { manager.openTrash() } label: { Label("废纸篓", systemImage: "trash") }
                     .buttonStyle(ManagementToolbarButton()).help("打开电脑废纸篓")
@@ -213,7 +242,7 @@ struct FontManagementView: View {
                 Label(manager.selected.isEmpty ? "删除已选…" : "删除已选（\(manager.selected.count)）…", systemImage: "trash")
             }.buttonStyle(ManagementToolbarButton(destructive: true)).disabled(manager.selected.isEmpty)
         }.buttonStyle(.plain).font(.system(size: 11, weight: .medium)).foregroundColor(Palette.green)
-            .fixedSize(horizontal: false, vertical: true).disabled(manager.isProcessing)
+            .fixedSize(horizontal: false, vertical: true).disabled(manager.isProcessing || manager.isRefreshing)
     }
 
     private var sortMenu: some View {
@@ -262,58 +291,88 @@ private struct FontManagementCardButtonStyle: ButtonStyle {
     }
 }
 
-private struct FontManagementCard: View {
-    @ObservedObject var appModel: AppModel
-    @ObservedObject var manager: FontManagementModel
-    let item: LocalFontFamily
-    var compact = false
-    private var chosen: Bool { manager.selected.contains(item.id) }
-    private var face: FontFace { appModel.previewFace(item.font) }
-    private var preview: String {
+private struct FontManagementCardData: Equatable, Sendable {
+    let id: String
+    let title: String
+    let english: String
+    let styleCount: Int
+    let fileCount: Int
+    let faceID: String
+    let sourceURL: URL?
+    let preview: String
+    let size: Double
+    let chosen: Bool
+    let canTrash: Bool
+    let unavailableReason: String?
+    let disabled: Bool
+    let compact: Bool
+    @MainActor init(appModel: AppModel, manager: FontManagementModel, item: LocalFontFamily, compact: Bool) {
+        let face = appModel.previewFace(item.font)
         let text = appModel.preview.isEmpty ? "把灵感，写成日常。" : appModel.preview
-        return !face.supportsChinese && FontNames.hasHan(text) ? "The quick brown fox" : text
+        id = item.id; title = appModel.chineseName(item.font) ?? appModel.englishName(item.font)
+        english = appModel.englishName(item.font); styleCount = item.font.faces.count; fileCount = item.files.count
+        faceID = face.id; sourceURL = face.sourceURL
+        preview = !face.supportsChinese && FontNames.hasHan(text) ? "The quick brown fox" : text
+        size = appModel.size; chosen = manager.selected.contains(item.id); canTrash = item.canTrash
+        unavailableReason = item.unavailableReason
+        disabled = !item.canTrash || manager.isProcessing || manager.isRefreshing; self.compact = compact
+    }
+}
+
+private struct FontManagementCard: View, Equatable {
+    let appModel: AppModel
+    let manager: FontManagementModel
+    let item: LocalFontFamily
+    private let data: FontManagementCardData
+    @MainActor init(appModel: AppModel, manager: FontManagementModel, item: LocalFontFamily, compact: Bool = false) {
+        self.appModel = appModel; self.manager = manager; self.item = item
+        data = FontManagementCardData(appModel: appModel, manager: manager, item: item, compact: compact)
+    }
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool {
+        lhs.appModel === rhs.appModel && lhs.manager === rhs.manager && lhs.data == rhs.data
     }
     var body: some View {
         VStack(alignment: .leading, spacing: 0) {
             Button {
-                if chosen { manager.selected.remove(item.id) } else { manager.selected.insert(item.id) }
+                guard !manager.isProcessing && !manager.isRefreshing else { return }
+                if data.chosen { manager.selected.remove(item.id) } else { manager.selected.insert(item.id) }
             } label: {
                 VStack(alignment: .leading, spacing: 7) {
                     HStack(alignment: .top, spacing: 8) {
-                        Text(appModel.chineseName(item.font) ?? appModel.englishName(item.font))
+                        Text(data.title)
                             .font(.system(size: 14, weight: .semibold)).lineLimit(1)
                         Spacer(minLength: 0)
-                        Image(systemName: chosen ? "checkmark.square.fill" : "square")
-                            .font(.system(size: 16)).foregroundColor(item.canTrash ? Palette.green : Palette.muted.opacity(0.5))
+                        Image(systemName: data.chosen ? "checkmark.square.fill" : "square")
+                            .font(.system(size: 16)).foregroundColor(data.canTrash ? Palette.green : Palette.muted.opacity(0.5))
                     }
-                    Text(appModel.englishName(item.font)).font(.system(size: 10)).foregroundColor(Palette.muted).lineLimit(1)
-                    Text("\(item.font.faces.count) 种样式 · \(item.files.count) 个文件")
+                    Text(data.english).font(.system(size: 10)).foregroundColor(Palette.muted).lineLimit(1)
+                    Text("\(data.styleCount) 种样式 · \(data.fileCount) 个文件")
                         .font(.system(size: 10)).foregroundColor(Palette.muted)
-                    Text(preview).font(.custom(face.id, size: appModel.size))
-                        .lineLimit(compact ? 1 : 2).frame(maxWidth: .infinity, minHeight: compact ? 34 : 72, maxHeight: compact ? 34 : 72, alignment: .leading)
+                    Text(data.preview).font(.custom(data.faceID, size: data.size))
+                        .lineLimit(data.compact ? 1 : 2).frame(maxWidth: .infinity, minHeight: data.compact ? 34 : 72, maxHeight: data.compact ? 34 : 72, alignment: .leading)
                         .clipped().padding(.top, 5)
-                    if !compact {
-                        Text("Aa Bb Cc 0123456789").font(.custom(face.id, size: 14))
+                    if !data.compact {
+                        Text("Aa Bb Cc 0123456789").font(.custom(data.faceID, size: 14))
                             .lineLimit(1).frame(height: 22, alignment: .leading)
                     }
                 }.frame(maxWidth: .infinity, alignment: .leading).padding(16).contentShape(Rectangle())
-            }.buttonStyle(FontManagementCardButtonStyle()).disabled(!item.canTrash || manager.isProcessing)
-                .accessibilityLabel("\(item.font.english)，\(chosen ? "已选择" : "未选择")")
-                .help(item.unavailableReason ?? "选择此家族的全部字体文件；共用文件的其他字体也会一起移除")
+            }.buttonStyle(FontManagementCardButtonStyle()).disabled(data.disabled)
+                .accessibilityLabel("\(data.english)，\(data.chosen ? "已选择" : "未选择")")
+                .help(data.unavailableReason ?? "选择此家族的全部字体文件；共用文件的其他字体也会一起移除")
             HStack(spacing: 6) {
-                Text(item.unavailableReason ?? (chosen ? "已选择" : "可移到废纸篓"))
+                Text(data.unavailableReason ?? (data.chosen ? "已选择" : "可移到废纸篓"))
                     .font(.system(size: 9)).foregroundColor(Palette.muted).lineLimit(1)
                 Spacer(minLength: 0)
                 Button {
-                    if let url = face.sourceURL { NSWorkspace.shared.activateFileViewerSelecting([url]) }
+                    if let url = data.sourceURL { NSWorkspace.shared.activateFileViewerSelecting([url]) }
                 } label: {
                     Label("查看位置", systemImage: "folder").font(.system(size: 10))
-                }.buttonStyle(.plain).foregroundColor(Palette.green).disabled(face.sourceURL == nil)
-                    .help(face.sourceURL?.path ?? "字体文件不可用")
+                }.buttonStyle(.plain).foregroundColor(Palette.green).disabled(data.sourceURL == nil)
+                    .help(data.sourceURL?.path ?? "字体文件不可用")
             }.padding(.horizontal, 16).padding(.bottom, 14)
         }.frame(maxWidth: .infinity, alignment: .leading)
-            .background(chosen ? Palette.mint : Color.white)
+            .background(data.chosen ? Palette.mint : Color.white)
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(chosen ? Palette.green : Palette.line.opacity(0.6), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(data.chosen ? Palette.green : Palette.line.opacity(0.6), lineWidth: 1))
     }
 }

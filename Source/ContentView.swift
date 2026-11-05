@@ -25,7 +25,7 @@ struct QuietButton: ButtonStyle {
 
 struct ContentView: View {
     @ObservedObject var model: AppModel
-    @StateObject private var fontManager = FontManagementModel()
+    @ObservedObject var fontManager: FontManagementModel
     @AppStorage("allFonts.gridView") private var allFontsGrid = false
     @AppStorage("chineseFonts.gridView") private var chineseFontsGrid = false
     @AppStorage("favoriteFonts.gridView") private var favoriteFontsGrid = false
@@ -79,9 +79,11 @@ struct ContentView: View {
             }
         }
         .onReceive(NotificationCenter.default.publisher(for: .focusFontSearch)) { _ in if model.section != .management { searchFocused = true } }
-        .onReceive(model.$fonts) { if model.section == .management { fontManager.refresh($0) } }
-        .onChange(of: model.section) { section in
-            if section == .management { fontManager.refresh(model.fonts) }
+        .onChange(of: model.catalogRevision) { revision in
+            fontManager.prepare(model.fonts, revision: revision)
+        }
+        .onAppear {
+            if !model.loading { fontManager.prepare(model.fonts, revision: model.catalogRevision) }
         }
     }
 
@@ -204,11 +206,11 @@ struct ContentView: View {
                 ScrollView {
                     if showsGrid {
                         LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 14)], spacing: 14) {
-                            ForEach(model.visible) { font in FontRow(model: model, font: font, grid: true) }
+                            ForEach(model.visible) { font in FontRow(model: model, font: font, grid: true).equatable() }
                         }.padding(.horizontal, 24).padding(.bottom, 24)
                     } else {
                         LazyVStack(spacing: 10) {
-                            ForEach(model.visible) { font in FontRow(model: model, font: font) }
+                            ForEach(model.visible) { font in FontRow(model: model, font: font).equatable() }
                         }.padding(.horizontal, 24).padding(.bottom, 24)
                     }
                 }
@@ -216,7 +218,7 @@ struct ContentView: View {
             HStack {
                 Text("字体册已启用字体 · 复制家族名称").font(.system(size: 9)).foregroundColor(Palette.muted)
                 Spacer()
-                Text("v1.20").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
+                Text("v1.21").font(.system(size: 9, design: .monospaced)).foregroundColor(Palette.muted)
             }.padding(.horizontal, 25).frame(height: 35)
         }
     }
@@ -325,54 +327,77 @@ struct FontLayoutToggle: View {
 
 }
 
-struct FontRow: View {
-    @ObservedObject var model: AppModel
-    let font: FontRecord
-    var grid = false
-    private var sample: String {
+struct FontRowData: Equatable, Sendable {
+    let id: String
+    let chinese: String?
+    let english: String
+    let styleCount: Int
+    let faceID: String
+    let sourceURL: URL?
+    let sample: String
+    let size: Double
+    let selected: Bool
+    let favorite: Bool
+    let grid: Bool
+    @MainActor init(model: AppModel, font: FontRecord, grid: Bool) {
+        let face = model.previewFace(font)
         let text = model.preview.isEmpty ? "把灵感，写成日常。" : model.preview
-        return grid && !model.previewFace(font).supportsChinese && FontNames.hasHan(text) ? "The quick brown fox" : text
+        id = font.id; chinese = model.chineseName(font); english = model.englishName(font)
+        styleCount = font.faces.count; faceID = face.id; sourceURL = face.sourceURL
+        sample = grid && !face.supportsChinese && FontNames.hasHan(text) ? "The quick brown fox" : text
+        size = grid ? model.size : 23; selected = model.selection == font.id
+        favorite = model.favorites.contains(font.id); self.grid = grid
     }
+}
+
+struct FontRow: View, Equatable {
+    let model: AppModel
+    let font: FontRecord
+    private let data: FontRowData
+    @MainActor init(model: AppModel, font: FontRecord, grid: Bool = false) {
+        self.model = model; self.font = font; data = FontRowData(model: model, font: font, grid: grid)
+    }
+    nonisolated static func == (lhs: Self, rhs: Self) -> Bool { lhs.model === rhs.model && lhs.data == rhs.data }
     var body: some View {
         VStack(alignment: .leading, spacing: 13) {
             HStack(alignment: .top) {
                 VStack(alignment: .leading, spacing: 4) {
-                    Text(model.chineseName(font) ?? model.englishName(font)).font(.system(size: 14, weight: .semibold)).lineLimit(1)
-                    Text("\(model.englishName(font)) · \(font.faces.count) 种样式").font(.system(size: 10)).foregroundColor(Palette.muted).lineLimit(1)
+                    Text(data.chinese ?? data.english).font(.system(size: 14, weight: .semibold)).lineLimit(1)
+                    Text("\(data.english) · \(data.styleCount) 种样式").font(.system(size: 10)).foregroundColor(Palette.muted).lineLimit(1)
                 }
                 Spacer()
                 Button { model.toggleFavorite(font.id) } label: {
-                    Image(systemName: model.favorites.contains(font.id) ? "star.fill" : "star").font(.system(size: 12)).foregroundColor(Palette.muted)
-                }.buttonStyle(.plain).help("收藏 \(font.english)")
+                    Image(systemName: data.favorite ? "star.fill" : "star").font(.system(size: 12)).foregroundColor(Palette.muted)
+                }.buttonStyle(.plain).help("收藏 \(data.english)")
             }
-            if grid {
-                Text(sample).font(.custom(model.previewFace(font).id, size: model.size)).lineLimit(2)
+            if data.grid {
+                Text(data.sample).font(.custom(data.faceID, size: data.size)).lineLimit(2)
                     .frame(maxWidth: .infinity, alignment: .leading).frame(height: 72, alignment: .leading).clipped()
                     .foregroundColor(Palette.ink.opacity(0.88))
-                Text("Aa Bb Cc 0123456789").font(.custom(model.previewFace(font).id, size: 14))
+                Text("Aa Bb Cc 0123456789").font(.custom(data.faceID, size: 14))
                     .lineLimit(1).frame(height: 22, alignment: .leading)
             } else {
-                Text(sample).font(.custom(model.previewFace(font).id, size: 23)).lineLimit(1).frame(height: 29, alignment: .leading)
+                Text(data.sample).font(.custom(data.faceID, size: 23)).lineLimit(1).frame(height: 29, alignment: .leading)
                     .foregroundColor(Palette.ink.opacity(0.88))
             }
             HStack(spacing: 6) {
-                Button("复制中文") { if let value = model.chineseName(font) { model.copy(value, font: font, label: "中文名") } }
-                    .buttonStyle(QuietButton()).disabled(model.chineseName(font) == nil).opacity(model.chineseName(font) == nil ? 0.4 : 1)
-                    .help(model.chineseName(font) ?? "字体未提供中文名")
-                Button("复制英文") { model.copy(model.englishName(font), font: font, label: "英文名") }.buttonStyle(QuietButton())
+                Button("复制中文") { if let value = data.chinese { model.copy(value, font: font, label: "中文名") } }
+                    .buttonStyle(QuietButton()).disabled(data.chinese == nil).opacity(data.chinese == nil ? 0.4 : 1)
+                    .help(data.chinese ?? "字体未提供中文名")
+                Button("复制英文") { model.copy(data.english, font: font, label: "英文名") }.buttonStyle(QuietButton())
                 Spacer(minLength: 0)
                 Button { model.revealFontFile(font) } label: {
-                    if grid { Image(systemName: "folder") } else { Label("查看字体位置", systemImage: "folder") }
+                    if data.grid { Image(systemName: "folder") } else { Label("查看字体位置", systemImage: "folder") }
                 }.buttonStyle(QuietButton())
                     .accessibilityLabel("查看字体位置")
-                    .disabled(model.previewFace(font).sourceURL == nil)
-                    .help(model.previewFace(font).sourceURL?.path ?? "字体文件暂不可用，请刷新字体列表")
+                    .disabled(data.sourceURL == nil)
+                    .help(data.sourceURL?.path ?? "字体文件暂不可用，请刷新字体列表")
             }
-        }.padding(16).background(model.selection == font.id ? Color.white : Color.white.opacity(0.6))
+        }.padding(16).background(data.selected ? Color.white : Color.white.opacity(0.6))
             .clipShape(RoundedRectangle(cornerRadius: 12))
-            .overlay(RoundedRectangle(cornerRadius: 12).stroke(model.selection == font.id ? Palette.green.opacity(0.6) : Palette.line.opacity(0.5), lineWidth: 1))
+            .overlay(RoundedRectangle(cornerRadius: 12).stroke(data.selected ? Palette.green.opacity(0.6) : Palette.line.opacity(0.5), lineWidth: 1))
             .contentShape(Rectangle()).onTapGesture { model.selection = font.id }
-            .accessibilityElement(children: .contain).accessibilityLabel(font.english)
+            .accessibilityElement(children: .contain).accessibilityLabel(data.english)
     }
 }
 

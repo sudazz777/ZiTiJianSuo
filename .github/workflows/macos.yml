@@ -67,6 +67,9 @@ jobs:
       - name: Check runtime cache correctness and measure search performance
         timeout-minutes: 3
         run: '"/Applications/字体检索.app/Contents/MacOS/FontName" --runtime-self-test'
+      - name: Check responsive category switching and startup-only font loading
+        timeout-minutes: 3
+        run: '"/Applications/字体检索.app/Contents/MacOS/FontName" --sidebar-self-test'
       - name: Test real font Trash operation and failure rollback
         run: '"/Applications/字体检索.app/Contents/MacOS/FontName" --font-management-self-test "$PWD/fonts/files"'
       - name: Test automatic update installation and rollback in isolated apps

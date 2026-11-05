@@ -223,6 +223,18 @@ struct FontRecord: Identifiable {
         query.isEmpty || searchIndex.contains { $0.contains(query) } || extra.contains { $0.contains(query) }
     }
 
+    func removingFiles(_ paths: Set<String>) -> Self? {
+        let remaining = faces.filter { face in
+            face.sourceURL.map { !paths.contains($0.standardizedFileURL.path) } ?? true
+        }
+        guard !remaining.isEmpty else { return nil }
+        guard remaining.count != faces.count else { return self }
+        let names = Array(Set(remaining.flatMap { [$0.id, $0.family, $0.style, $0.label] + $0.names }))
+        return Self(id: id, family: family, english: english, chinese: chinese,
+                    style: remaining.min(by: FontFace.preferred)!.style, aliases: aliases, allNames: names,
+                    supportsChinese: remaining.contains(where: \.supportsChinese), faces: remaining)
+    }
+
     static func familyKey(_ name: String) -> String {
         name.precomposedStringWithCanonicalMapping.trimmingCharacters(in: .whitespacesAndNewlines)
             .folding(options: [.caseInsensitive], locale: Locale(identifier: "en_US_POSIX"))

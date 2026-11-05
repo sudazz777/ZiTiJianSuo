@@ -1,6 +1,5 @@
 import AppKit
 import SwiftUI
-import CoreText
 
 enum LibrarySection: String, CaseIterable {
     case all = "全部字体", chinese = "中文字体", favorites = "我的收藏", recent = "最近复制", management = "本地字体管理"
@@ -30,11 +29,16 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
             fontsByID = Dictionary(uniqueKeysWithValues: fonts.map { ($0.id, $0) })
             sortedCatalog = nil
             nameIndices = nameIndices.filter { fontsByID[$0.key] != nil }
+            catalogRevision &+= 1
         }
     }
     @Published var query = "" { didSet { filter() } }
+    @Published private(set) var catalogRevision: UInt64 = 0
     @Published var section: LibrarySection {
-        didSet { defaults.set(section.rawValue, forKey: "lastLibrarySection"); filter() }
+        didSet {
+            guard section != oldValue else { return }
+            defaults.set(section.rawValue, forKey: "lastLibrarySection"); filter()
+        }
     }
     @Published var sortOrder: FontSortOrder {
         didSet {
@@ -56,10 +60,8 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
     @Published var faceSelections: [String: String] = [:]
     private let defaults: UserDefaults
     private var toastWork: DispatchWorkItem?
-    private var fontObserver: NSObjectProtocol?
     private var scanning = false
-    private var reloadPending = false
-    private var fontChangeWork: DispatchWorkItem?
+    private let catalogProvider: () -> [FontRecord]
     private var fontsByID: [String: FontRecord] = [:]
     private var sortedCatalog: [FontRecord]?
     private struct NameIndex {
@@ -72,44 +74,35 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
     }
     private var nameIndices: [String: NameIndex] = [:]
 
-    init(defaults: UserDefaults = .standard) {
+    init(defaults: UserDefaults = .standard, catalogProvider: @escaping () -> [FontRecord] = FontRecord.installed) {
         self.defaults = defaults
+        self.catalogProvider = catalogProvider
         section = defaults.string(forKey: "lastLibrarySection").flatMap(LibrarySection.init(rawValue:)) ?? .all
         sortOrder = defaults.string(forKey: "sortOrder").flatMap(FontSortOrder.init(rawValue:)) ?? .englishAZ
         favorites = Set(defaults.stringArray(forKey: "favorites") ?? [])
         recent = defaults.stringArray(forKey: "recent") ?? []
         custom = defaults.data(forKey: "customNames").flatMap { try? JSONDecoder().decode([String: CustomNames].self, from: $0) } ?? [:]
-        fontObserver = DistributedNotificationCenter.default().addObserver(forName: NSNotification.Name(kCTFontManagerRegisteredFontsChangedNotification as String), object: nil, queue: .main) { [weak self] _ in
-            Task { @MainActor [weak self] in self?.scheduleFontReload() }
-        }
-    }
-
-    deinit {
-        fontChangeWork?.cancel()
-        if let fontObserver { DistributedNotificationCenter.default().removeObserver(fontObserver) }
-    }
-
-    private func scheduleFontReload() {
-        fontChangeWork?.cancel()
-        let work = DispatchWorkItem { [weak self] in self?.reload() }
-        fontChangeWork = work
-        DispatchQueue.main.asyncAfter(deadline: .now() + 0.25, execute: work)
     }
 
     func reload() {
-        fontChangeWork?.cancel(); fontChangeWork = nil
-        guard !scanning else { reloadPending = true; return }
+        guard !scanning else { return }
         scanning = true
         loading = true
+        let provider = catalogProvider
         DispatchQueue.global(qos: .userInitiated).async {
-            let records = FontRecord.installed()
+            let records = provider()
             DispatchQueue.main.async {
                 self.applyCatalog(records)
                 self.scanning = false
                 self.loading = false
-                if self.reloadPending { self.reloadPending = false; self.reload() }
             }
         }
+    }
+
+    func removeFontFiles(_ paths: Set<String>) {
+        guard !paths.isEmpty else { return }
+        fonts = fonts.compactMap { $0.removingFiles(paths) }
+        filter()
     }
 
     func applyCatalog(_ records: [FontRecord]) {
@@ -152,7 +145,8 @@ enum FontSortOrder: String, CaseIterable, Identifiable {
     }
 
     func previewFace(_ font: FontRecord) -> FontFace {
-        font.faces.first { $0.id == faceSelections[font.id] } ?? font.defaultFace
+        guard let selectedID = faceSelections[font.id] else { return font.defaultFace }
+        return font.faces.first { $0.id == selectedID } ?? font.defaultFace
     }
     func selectFace(_ id: String, for font: FontRecord) {
         guard font.faces.contains(where: { $0.id == id }) else { return }
