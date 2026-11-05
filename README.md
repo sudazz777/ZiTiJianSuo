@@ -6,11 +6,11 @@
 
 ![字体检索软件界面](documentation/assets/app-preview.png)
 
-## 下载 v1.15
+## 下载 v1.16
 
 | 下载文件 | 用途 |
 | --- | --- |
-| [下载 macOS 安装包（DMG）](https://github.com/sudazz777/ZiTiJianSuo/releases/download/v1.15/FontFinder-macOS-Universal-v1.15.dmg) | Apple 芯片与 Intel Mac，部署目标 macOS 13+ |
+| [下载 macOS 安装包（DMG）](https://github.com/sudazz777/ZiTiJianSuo/releases/download/v1.16/FontFinder-macOS-Universal-v1.16.dmg) | Apple 芯片与 Intel Mac，部署目标 macOS 13+ |
 
 ## 安装
 
@@ -34,14 +34,12 @@
 
 安装包不含字体文件；每台 Mac 显示各自安装的字体。复制的是名称文字，当前版本没有直接连接设计软件写入字体的功能。
 
-## v1.15 版本说明
+## v1.16 版本说明
 
-重新整理「本地字体管理」顶部工具栏：搜索与筛选、预览文字与字号、选择统计与批量操作分组排列，统一间距、边框和按钮样式。
-
-默认勾选「只看可删除字体」，取消勾选即可查看系统字体等完整列表。没有可删除字体时提供明确提示和切换入口。排序、多选、二次确认和废纸篓操作保持可用。
+左侧当前分类改为深绿色底色、白色文字和图标，并提高数量的显示对比度。五个分类统一使用这一选中样式，当前所在位置更醒目。
 
 ![本地字体管理预览](documentation/assets/font-management-preview.png)
 
-v1.14 可通过软件内的「更新并重启」自动安装本版；v1.13 及更早版本需手动安装一次。首次安装仍可拖拽 DMG。每次启动自动检查更新，不进行定时后台检测。
+v1.14 及后续版本可在软件内选择「更新并重启」安装本版；v1.13 及更早版本需手动安装一次。首次安装仍可拖拽 DMG。
 
 更多软件操作说明见 [使用说明](documentation/user-guide.md)。
