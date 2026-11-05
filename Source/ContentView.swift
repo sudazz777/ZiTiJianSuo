@@ -188,7 +188,7 @@ struct ContentView: View {
             } else {
                 ScrollView {
                     if showsGrid {
-                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 260), spacing: 14)], spacing: 14) {
+                        LazyVGrid(columns: [GridItem(.adaptive(minimum: 220), spacing: 14)], spacing: 14) {
                             ForEach(model.visible) { font in FontRow(model: model, font: font, grid: true) }
                         }.padding(.horizontal, 24).padding(.bottom, 24)
                     } else {
